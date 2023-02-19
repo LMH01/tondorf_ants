@@ -8,6 +8,11 @@ const TEAM_NAME: &str = "Rust_pirates";
 //const SERVER_ADDRESS: &str = "10.10.10.32:5000";
 const SERVER_ADDRESS: &str = "127.0.0.1:5000";
 
+/// All coordinates of the home bases, coordinates for base 0 are in index 0.
+const HOME_BASE_COORDINATES: [(u16, u16); 16] = [(100, 100), (300, 100), (500, 100),
+    (700, 100), (900, 100), (900, 300), (900, 500), (900, 700), (900, 900), (700, 900),
+    (500, 900), (300, 900), (100, 900), (100, 700), (100, 500), (100, 300)];
+
 fn main() {
     println!("register: {:?}", &Register::new());
     match TcpStream::connect(&SERVER_ADDRESS) {
@@ -16,16 +21,16 @@ fn main() {
             tcp_stream.write_all(&Register::new().as_bytes());
             let mut turn_number = 1;
             loop {
+                br = BufReader::new(tcp_stream.try_clone().unwrap());
                 //let mut input_buffer = String::new();
                 //br.read_line(&mut input_buffer);
                 //println!("Out: {:?}", input_buffer);
                 let turn = Turn::new(&mut br.bytes());
                 //turn.print(turn_number);
                 turn_number += 1;
-                br = BufReader::new(tcp_stream.try_clone().unwrap());
                 let mut ants = Ants::from_turn(&turn);
                 ants.print_ants();
-                action(&mut tcp_stream);
+                action(&mut tcp_stream, &turn);
             }
         }
         Err(e) => {
@@ -34,20 +39,16 @@ fn main() {
     }
 }
 
-fn action(stream: &mut TcpStream) {
+fn action(stream: &mut TcpStream, turn: &Turn) {
     let mut actions: Vec<u8> = Vec::new();
-    for i in 0..16 {
-        actions.push(9);
+    let ants = Ants::from_turn(&turn);
+    for ant in &ants.ants {
+        actions.push(ant.calc_move(&turn));
     }
     match stream.write_all(&actions) {
         Err(e) => println!("Error, unable to send action: {}", e),
         Ok(_ok) => (),
     }
-}
-
-/// Decides the next move for the ant with the given id
-fn ant_action(id: u8, turn: &Turn) -> u8 {
-    
 }
 
 #[derive(Debug, Ord, PartialEq, PartialOrd, Eq)]
@@ -77,6 +78,52 @@ impl Ant {
             health,
             cargo,
         }
+    }
+
+    /// Decides in wich direction this ant will move in the next turn
+    fn calc_move(&self, turn: &Turn) -> u8 {
+        // Move to enemy base when carrying toxin (for now for exidential pickups when moving somewhere else)
+        if self.cargo.is_some() && self.cargo.as_ref().unwrap() == &AntCargo::ToxicWaste {
+            return self.get_direction(turn.leading_team_base_coordinates());
+        }
+        // Move home when carrying sugar
+        if self.cargo.is_some() && self.cargo.as_ref().unwrap() == &AntCargo::Sugar {
+            return self.get_direction(HOME_BASE_COORDINATES[turn.team_id as usize]);
+        }
+        // Search next piece of sugar
+        match turn.nearest_sugar_coordinates(self.pos) {
+            Some(pos) => self.get_direction(pos),
+            None => 5,
+        }
+    }
+
+    /// Returns the direction in wich the ant should go to reach `target`.
+    fn get_direction(&self, target: (u16, u16)) -> u8 {
+        if self.pos.0 > target.0 && self.pos.1 > target.1 {
+            return 1;
+        }
+        if self.pos.0 < target.0 && self.pos.1 > target.1 {
+            return 7;
+        }
+        if self.pos.0 < target.0 && self.pos.1 < target.1 {
+            return 9;
+        }
+        if self.pos.0 > target.0 && self.pos.1 < target.1 {
+            return 3;
+        }
+        if self.pos.0 == target.0 && self.pos.1 < target.1 {
+            return 6;
+        }
+        if self.pos.0 == target.0 && self.pos.1 > target.1 {
+            return 4;
+        }
+        if self.pos.0 < target.0 && self.pos.1 == target.1 {
+            return 8;
+        }
+        if self.pos.0 > target.0 && self.pos.1 == target.1 {
+            return 2;
+        }
+        return 5
     }
 }
 
@@ -114,7 +161,7 @@ impl Ants {
             if !object.is_ant() {
                 continue;
             }
-            ants.push(Ant::new(object.b2.upper, (object.x, object.y), object.b2.lower, object.get_ant_cargo()));
+            ants.push(Ant::new(object.b2.upper, object.pos,object.b2.lower, object.get_ant_cargo()));
         }
         // Make sure that ants are sorted acending by id
         ants.sort();
@@ -148,7 +195,7 @@ impl Turn {
         // Parse teams
         let mut teams: Vec<Team> = Vec::new();
         for i in 0..16 {
-            let team = Team::new(input);
+            let team = Team::new(input, i);
             teams.push(team);
         }
         // Parse number of objects
@@ -178,19 +225,67 @@ impl Turn {
         }
         println!();
     }
+
+    /// Returns the coordinates of the base for the enemy team with the currently most points.
+    /// 
+    /// Used to lead ants with toxins to enemy bases.
+    fn leading_team_base_coordinates(&self) -> (u16, u16) {
+        let mut coordinates = HOME_BASE_COORDINATES[15];
+        let mut max_points = 0;
+        for team in &self.teams {
+            // Prevent own base form getting attacked.
+            if team.team_name == TEAM_NAME {
+                continue;
+            }
+            if max_points < team.points {
+                max_points = team.points;
+                coordinates = HOME_BASE_COORDINATES[team.id as usize];
+            }
+        }
+        coordinates
+    }
+
+    /// Returns the coordinates for the nearest piece of sugar or `None` if no sugar is found.
+    /// 
+    /// `pos` - the current position
+    fn nearest_sugar_coordinates(&self, pos: (u16, u16)) -> Option<(u16, u16)> {
+        let mut nearest_sugar: Option<(u16, u16)> = None;
+        let mut nearest_distance = u16::MAX;
+        for object in &self.objects {
+            let cargo = object.get_ant_cargo();
+            if cargo.is_some() && cargo.as_ref().unwrap() == &AntCargo::Sugar {
+                let distance = get_distance(pos, object.pos);
+                if nearest_distance > distance {
+                    nearest_sugar = Some(object.pos);
+                    nearest_distance = distance;
+                }
+            }
+        }
+        nearest_sugar
+    }
+}
+
+/// Calculates the distance between two points
+fn get_distance(pos1: (u16, u16), pos2: (u16, u16)) -> u16 {
+    let x_diff = (pos1.0 as i32 - pos2.0 as i32).abs() as u32;
+    let y_diff = (pos1.1 as i32 - pos2.1 as i32).abs() as u32;
+    let distance_squared = x_diff * x_diff + y_diff * y_diff;
+    (distance_squared as f64).sqrt() as u16
 }
 
 #[derive(Debug)]
 struct Team {
+    id: i16,
     points: u16,
     remaining_ants: u16,
     team_name: String, //16 bytes, if not exactly 16 this will brake
 }
 
 impl Team {
-    fn new(bytes: &mut Bytes<BufReader<TcpStream>>) -> Self {
+    fn new(bytes: &mut Bytes<BufReader<TcpStream>>, id: i16) -> Self {
         Self {
-            points: u16::from_le_bytes(read_to_two_byte_array(bytes)),// Frage: Welche Größenordnung? Muss hier little endian oder big endian benutzt werden?
+            id,
+            points: u16::from_le_bytes(read_to_two_byte_array(bytes)),
             remaining_ants: u16::from_le_bytes(read_to_two_byte_array(bytes)),
             team_name: bytes_to_string(bytes),
         }
@@ -200,7 +295,8 @@ impl Team {
 fn read_to_two_byte_array(input: &mut Bytes<BufReader<TcpStream>>) -> [u8; 2] {
     let mut bytes: [u8; 2] = [0u8; 2];
     for i in 0..2 {
-        bytes[i] = input.next().unwrap().unwrap();
+        //bytes[i] = input.next().unwrap().unwrap();
+        bytes[i] = input.next().unwrap_or(Ok(0)).unwrap_or(0);
     }
     bytes
 }
@@ -217,24 +313,24 @@ fn bytes_to_string(input: &mut Bytes<BufReader<TcpStream>>) -> String {
 struct Object {
     b1: Pair,// Contains object type and team id
     b2: Pair,// Contains ant ID and ant health
-    x: u16,
-    y: u16,
+    pos: (u16, u16),
 }
 
 impl Object {
     fn new(input: &mut Bytes<BufReader<TcpStream>>) -> Self {
+        let x = u16::from_le_bytes(read_to_two_byte_array(input));
+        let y = u16::from_le_bytes(read_to_two_byte_array(input));
         Self {
             b1: Pair::new(input.next().unwrap().unwrap()),
             b2: Pair::new(input.next().unwrap().unwrap()),
-            x: u16::from_le_bytes(read_to_two_byte_array(input)),
-            y: u16::from_le_bytes(read_to_two_byte_array(input)),
+            pos: (x, y),
         }
     }
 
     /// Returns true if this object is an ant
     fn is_ant(&self) -> bool {
-        //(self.b1.upper & (1 << 1-1)) != 0
-        true
+        (self.b1.upper & (1 << 1-1)) != 0
+        //true
     }
 
     /// Returns the cargo the ant is currently carrying or none if no cargo is carried.
