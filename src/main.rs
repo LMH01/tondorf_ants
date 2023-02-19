@@ -140,8 +140,8 @@ struct Pair {
 impl Pair {
     fn new(byte: u8) -> Self {
         Self {
-            upper: byte << 4,
-            lower: byte >> 4,
+            upper: byte >> 4,
+            lower: byte << 4,
         }
     }
 }
