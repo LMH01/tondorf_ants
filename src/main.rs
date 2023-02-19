@@ -40,10 +40,17 @@ fn main() {
 fn action(stream: &mut TcpStream, turn: &Turn) {
     let mut actions: Vec<u8> = Vec::new();
     let ants = Ants::from_turn(&turn);
-    //ants.print_ants();
+    ants.print_ants();
     for ant in &ants.ants {
         actions.push(ant.calc_move(&turn));
     }    
+    //for (i, ant) in ants.ants.iter().enumerate() {
+    //    if i > 14 {
+    //        actions.push(ant.calc_move(&turn));
+    //    } else {
+    //        actions.push(5);
+    //    }
+    //}
     match stream.write_all(&actions) {
         Err(e) => println!("Error, unable to send action: {}", e),
         Ok(_ok) => (),
@@ -102,25 +109,25 @@ impl Ant {
             return 1;
         }
         if self.pos.0 < target.0 && self.pos.1 > target.1 {
-            return 7;
+            return 3;
         }
         if self.pos.0 < target.0 && self.pos.1 < target.1 {
             return 9;
         }
         if self.pos.0 > target.0 && self.pos.1 < target.1 {
-            return 3;
+            return 7;
         }
         if self.pos.0 == target.0 && self.pos.1 < target.1 {
-            return 6;
-        }
-        if self.pos.0 == target.0 && self.pos.1 > target.1 {
-            return 4;
-        }
-        if self.pos.0 < target.0 && self.pos.1 == target.1 {
             return 8;
         }
-        if self.pos.0 > target.0 && self.pos.1 == target.1 {
+        if self.pos.0 == target.0 && self.pos.1 > target.1 {
             return 2;
+        }
+        if self.pos.0 < target.0 && self.pos.1 == target.1 {
+            return 6;
+        }
+        if self.pos.0 > target.0 && self.pos.1 == target.1 {
+            return 4;
         }
         return 5
     }
@@ -342,10 +349,10 @@ impl Object {
         //if (self.b1.upper & (1 << 2-1)) != 0 {
         //    return Some(AntCargo::Sugar);
         //}
-        if (self.b1.upper == 2) {
+        if self.b1.upper == 2 || self.b1.upper == 3 {
             return Some(AntCargo::Sugar);
         }
-        if (self.b1.upper == 4) {
+        if self.b1.upper == 4 {
             return Some(AntCargo::ToxicWaste);
         }
         // Currently everything is interprted as sugar, probably serverside bug
@@ -397,5 +404,25 @@ impl Register {
             out.push(0);
         }
         out.try_into().unwrap()
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use crate::Ant;
+
+
+    #[test]
+    fn test_ant_movement() {
+        let ant = Ant::new(0, (1, 1), 10, None);
+        assert_eq!(ant.get_direction((0,0)), 1);
+        assert_eq!(ant.get_direction((1,0)), 2);
+        assert_eq!(ant.get_direction((2,0)), 3);
+        assert_eq!(ant.get_direction((0,1)), 4);
+        assert_eq!(ant.get_direction((1,1)), 5);
+        assert_eq!(ant.get_direction((2,1)), 6);
+        assert_eq!(ant.get_direction((0,2)), 7);
+        assert_eq!(ant.get_direction((1,2)), 8);
+        assert_eq!(ant.get_direction((2,2)), 9);
     }
 }
