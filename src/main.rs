@@ -20,7 +20,7 @@ fn main() {
                 //br.read_line(&mut input_buffer);
                 //println!("Out: {:?}", input_buffer);
                 let turn = Turn::new(&mut br.bytes());
-                println!("Turn [{}]: {:?}", turn_number,turn);
+                turn.print(turn_number);
                 turn_number += 1;
                 br = BufReader::new(tcp_stream.try_clone().unwrap());
             }
@@ -61,6 +61,20 @@ impl Turn {
             nr_of_objects,
             objects
         }
+    }
+
+    fn print(&self, turn_number: i32) {
+        println!("Turn {}:", turn_number);
+        println!("Team id: {}", self.team_id);
+        println!("Teams:");
+        for team in &self.teams {
+            println!("{:?}", team);
+        }
+        println!("Number of Objects: {}", self.nr_of_objects);
+        for object in &self.objects {
+            println!("Object: {:?}", object);
+        }
+        println!();
     }
 }
 
