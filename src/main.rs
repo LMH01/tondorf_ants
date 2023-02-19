@@ -113,16 +113,6 @@ impl Ant {
             if !ant_positions.contains(&next_point(self.pos, direction)) {
                 break;
             }
-            //if direction == 9 {
-            //    direction = 1;
-            //} else if direction == 4 {
-            //    direction = 6;
-            //} else {
-            //    direction += 1;
-            //}
-            //if i == 9 {
-            //    direction = 5;
-            //}
             direction = rand::thread_rng().gen_range(1..9);
         }
         direction
@@ -306,7 +296,7 @@ impl Turn {
         let mut nearest_distance = u16::MAX;
         for object in &self.objects {
             let cargo = object.get_ant_cargo();
-            if cargo.is_some() && cargo.as_ref().unwrap() == &AntCargo::Sugar {
+            if cargo.is_some() && cargo.as_ref().unwrap() == &AntCargo::Sugar && !object.is_ant() {
                 let distance = get_distance(pos, object.pos);
                 if nearest_distance > distance {
                     nearest_sugar = Some(object.pos);
