@@ -92,25 +92,31 @@ impl Ant {
     fn calc_move(&self, turn: &Turn, ant_positions: &Vec<(u16, u16)>) -> u8 {
         // Move to enemy base when carrying toxin (for now for exidential pickups when moving somewhere else)
         if self.cargo.is_some() && self.cargo.as_ref().unwrap() == &AntCargo::ToxicWaste {
-            return self.get_direction(turn.leading_team_base_coordinates(), ant_positions);
+            println!("leading team base coordinates: {:?}", turn.leading_team_base_coordinates());
+            return self.get_direction(turn.leading_team_base_coordinates(), ant_positions, &turn);
         }
         // Move home when carrying sugar
         if self.cargo.is_some() && self.cargo.as_ref().unwrap() == &AntCargo::Sugar {
-            return self.get_direction(HOME_BASE_COORDINATES[turn.team_id as usize], ant_positions);
+            return self.get_direction(HOME_BASE_COORDINATES[turn.team_id as usize], ant_positions, &turn);
         }
         // Search next piece of sugar
         match turn.nearest_sugar_coordinates(self.pos) {
-            Some(pos) => self.get_direction(pos, ant_positions),
+            Some(pos) => self.get_direction(pos, ant_positions, &turn),
             None => 5,
         }
     }
 
     /// Returns the direction in wich the ant should go this turn.
     /// Takes into consideration if the most optimal path is blocked by another ant and changes direction accordingly.
-    fn get_direction(&self, target: (u16, u16), ant_positions: &Vec<(u16, u16)>) -> u8 {
+    /// Ants that already carry things will not walk over sugar/toxins.
+    fn get_direction(&self, target: (u16, u16), ant_positions: &Vec<(u16, u16)>, turn: &Turn) -> u8 {
         let mut direction = self.move_direction(target);
         for i in 0..9  {
-            if !ant_positions.contains(&next_point(self.pos, direction)) {
+            let next_pos = next_point(self.pos, direction);
+            if !ant_positions.contains(&next_pos) {
+                break;
+            }
+            if self.cargo.is_some() && !turn.object_positions().contains(&next_pos) {
                 break;
             }
             direction = rand::thread_rng().gen_range(1..9);
@@ -306,6 +312,16 @@ impl Turn {
         }
         nearest_sugar
     }
+
+    /// Returns a vector that contains all positions of objects. This includes ants.
+    fn object_positions(&self) -> Vec<(u16, u16)> {
+        let mut positions = Vec::new();
+        for object in &self.objects {
+            positions.push(object.pos);
+        }
+        positions
+    }
+
 }
 
 /// Calculates the distance between two points
