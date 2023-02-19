@@ -20,9 +20,12 @@ fn main() {
                 //br.read_line(&mut input_buffer);
                 //println!("Out: {:?}", input_buffer);
                 let turn = Turn::new(&mut br.bytes());
-                turn.print(turn_number);
+                //turn.print(turn_number);
                 turn_number += 1;
                 br = BufReader::new(tcp_stream.try_clone().unwrap());
+                let mut ants = Ants::from_turn(&turn);
+                ants.print_ants();
+                action(&mut tcp_stream);
             }
         }
         Err(e) => {
@@ -31,8 +34,107 @@ fn main() {
     }
 }
 
+fn action(stream: &mut TcpStream) {
+    let mut actions: Vec<u8> = Vec::new();
+    for i in 0..16 {
+        actions.push(9);
+    }
+    match stream.write_all(&actions) {
+        Err(e) => println!("Error, unable to send action: {}", e),
+        Ok(_ok) => (),
+    }
+}
+
+/// Decides the next move for the ant with the given id
+fn ant_action(id: u8, turn: &Turn) -> u8 {
+    
+}
+
+#[derive(Debug, Ord, PartialEq, PartialOrd, Eq)]
+enum AntCargo {
+    Sugar,
+    ToxicWaste,
+}
+
+#[derive(Debug, Ord, Eq)]
+struct Ant {
+    /// Id of this ant
+    id: u8,
+    /// Current position on the board
+    pos: (u16, u16),
+    /// Current health
+    health: u8,
+    /// Stores what the ant is carrying
+    cargo: Option<AntCargo>,
+}
+
+impl Ant {
+    /// Creates a new ant
+    fn new(id: u8, pos: (u16, u16), health: u8, cargo: Option<AntCargo>) -> Self {
+        Self {
+            id,
+            pos,
+            health,
+            cargo,
+        }
+    }
+}
+
+impl PartialOrd for Ant {
+    fn partial_cmp(&self, other: &Self) -> Option<std::cmp::Ordering> {
+        Some(self.id.cmp(&other.id))
+    }
+}
+
+impl PartialEq for Ant {
+    fn eq(&self, other: &Self) -> bool {
+        self.id == other.id
+    }
+
+    fn ne(&self, other: &Self) -> bool {
+        self.id != other.id
+    }
+}
+
+struct Ants {
+    ants: Vec<Ant>,
+}
+
+impl Ants {
+    /// Creates ants from the turn.
+    fn from_turn(turn: &Turn) -> Self {
+        let team_id = turn.team_id;
+        let mut ants = Vec::new();
+        for object in &turn.objects {
+            // Check object team id
+            if i16::from(object.b1.lower) != team_id {
+                continue;
+            }
+            // Check if object is ant
+            if !object.is_ant() {
+                continue;
+            }
+            ants.push(Ant::new(object.b2.upper, (object.x, object.y), object.b2.lower, object.get_ant_cargo()));
+        }
+        // Make sure that ants are sorted acending by id
+        ants.sort();
+        Self {
+            ants,
+        }
+    }
+
+    /// Prints the ants to the console
+    fn print_ants(&self) {
+        println!("Ants: ");
+        for ant in &self.ants {
+            println!("{:?}", ant);
+        }
+    }
+}
+
 #[derive(Debug)]
 struct Turn {
+    /// Team id of client
     team_id: i16,
     teams: Vec<Team>,// 16 Teams are required
     nr_of_objects: u16,
@@ -128,6 +230,31 @@ impl Object {
             y: u16::from_le_bytes(read_to_two_byte_array(input)),
         }
     }
+
+    /// Returns true if this object is an ant
+    fn is_ant(&self) -> bool {
+        //(self.b1.upper & (1 << 1-1)) != 0
+        true
+    }
+
+    /// Returns the cargo the ant is currently carrying or none if no cargo is carried.
+    fn get_ant_cargo(&self) -> Option<AntCargo> {
+        // TODO Check if calculation is correct.
+        //if (self.b1.upper & (1 << 4-1)) != 0 {
+        //    return Some(AntCargo::ToxicWaste);
+        //}
+        //if (self.b1.upper & (1 << 2-1)) != 0 {
+        //    return Some(AntCargo::Sugar);
+        //}
+        if (self.b1.upper == 2) {
+            return Some(AntCargo::Sugar);
+        }
+        if (self.b1.upper == 4) {
+            return Some(AntCargo::ToxicWaste);
+        }
+        // Currently everything is interprted as sugar, probably serverside bug
+        None
+    }
 }
 
 /// Represents a data type that uses an u8 to store two 4 bit values.
@@ -141,7 +268,7 @@ impl Pair {
     fn new(byte: u8) -> Self {
         Self {
             upper: byte >> 4,
-            lower: byte << 4,
+            lower: byte & 0xf,
         }
     }
 }
