@@ -28,8 +28,6 @@ fn main() {
                 let turn = Turn::new(&mut br.bytes());
                 //turn.print(turn_number);
                 turn_number += 1;
-                let mut ants = Ants::from_turn(&turn);
-                ants.print_ants();
                 action(&mut tcp_stream, &turn);
             }
         }
@@ -42,9 +40,10 @@ fn main() {
 fn action(stream: &mut TcpStream, turn: &Turn) {
     let mut actions: Vec<u8> = Vec::new();
     let ants = Ants::from_turn(&turn);
+    //ants.print_ants();
     for ant in &ants.ants {
         actions.push(ant.calc_move(&turn));
-    }
+    }    
     match stream.write_all(&actions) {
         Err(e) => println!("Error, unable to send action: {}", e),
         Ok(_ok) => (),
@@ -295,8 +294,7 @@ impl Team {
 fn read_to_two_byte_array(input: &mut Bytes<BufReader<TcpStream>>) -> [u8; 2] {
     let mut bytes: [u8; 2] = [0u8; 2];
     for i in 0..2 {
-        //bytes[i] = input.next().unwrap().unwrap();
-        bytes[i] = input.next().unwrap_or(Ok(0)).unwrap_or(0);
+        bytes[i] = input.next().unwrap().unwrap();
     }
     bytes
 }
@@ -318,11 +316,13 @@ struct Object {
 
 impl Object {
     fn new(input: &mut Bytes<BufReader<TcpStream>>) -> Self {
+        let b1 = Pair::new(input.next().unwrap().unwrap());
+        let b2 = Pair::new(input.next().unwrap().unwrap());
         let x = u16::from_le_bytes(read_to_two_byte_array(input));
         let y = u16::from_le_bytes(read_to_two_byte_array(input));
         Self {
-            b1: Pair::new(input.next().unwrap().unwrap()),
-            b2: Pair::new(input.next().unwrap().unwrap()),
+            b1,
+            b2,
             pos: (x, y),
         }
     }
