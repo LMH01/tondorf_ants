@@ -2,7 +2,7 @@ use std::{net::TcpStream, io::Write};
 
 use rand::Rng;
 
-use crate::{Ant, Ants, Turn, AntCargo, HOME_BASE_COORDINATES, TEAM_NAME, utils::{get_distance, next_point}, Position, AntJob, HOME_BASE_BEACONS};
+use crate::{Ant, Ants, Turn, AntCargo, HOME_BASE_COORDINATES, TEAM_NAME, utils::{get_distance, next_point}, Position, AntJob, HOME_BASE_BEACONS, Object};
 
 /// Analyzes the current game state and makes an approprate turn by moving each ant one tile.
 pub fn turn(stream: &mut TcpStream, turn: &Turn) {
@@ -44,7 +44,7 @@ impl Ant {
         if self.health <= 3 {
             return self.get_direction(HOME_BASE_COORDINATES[turn.team_id as usize], ant_positions, &turn);
         }
-        // Move to enemy base when carrying toxin (for now for exidential pickups when moving somewhere else)
+        // Move to enemy base when carrying toxin
         if self.cargo.is_some() && self.cargo.as_ref().unwrap() == &AntCargo::ToxicWaste {
             println!("leading team base coordinates: {:?}", turn.leading_team_base_coordinates());
             return self.get_direction(turn.leading_team_base_coordinates(), ant_positions, &turn);
@@ -52,6 +52,7 @@ impl Ant {
         match self.job.unwrap() {
             AntJob::Gatherer => self.calc_gatherer_move(turn, ant_positions),
             AntJob::Offensive => self.calc_offensive_move(turn, ant_positions),
+            AntJob::WasteMover => self.calc_waste_mover_move(turn, ant_positions),
         }
     }
 
@@ -88,6 +89,17 @@ impl Ant {
             }
         }
         self.calc_gatherer_move(turn, ant_positions)
+    }
+
+    /// Decides in which direction the ant moves in the next turn.
+    /// 
+    /// This function focuses on bring waste into enemy bases.
+    fn calc_waste_mover_move(&self, turn: &Turn, ant_positions: &Vec<(u16, u16)>) -> u8 {
+        match turn.nearest_toxic_waste_coordinates(self.pos) {
+            Some(pos) => return self.get_direction(pos, ant_positions, turn),
+            None => (),
+        }
+        self.calc_offensive_move(turn, ant_positions)
     }
 
     /// Returns the direction in wich the ant should go this turn.
@@ -143,6 +155,18 @@ impl Turn {
             }
         }
         self.nearest(pos, &sugar_pieces)
+    }
+
+    /// Returns the coordinates for the nearest piece of toxic waste or `None` if no tixins exist.
+    fn nearest_toxic_waste_coordinates(&self, pos: (u16, u16)) -> Option<(u16, u16)> {
+        let mut toxic_waste = Vec::new();
+        for object in &self.objects {
+            let cargo = object.get_ant_cargo();
+            if cargo.is_some() && cargo.as_ref().unwrap() == &AntCargo::ToxicWaste && !object.is_ant() {
+                toxic_waste.push(object);
+            }
+        }
+        self.nearest(pos, &toxic_waste)
     }
 
     pub fn nearest<T: Position>(&self, pos: (u16, u16), input: &Vec<T>) -> Option<(u16, u16)> {

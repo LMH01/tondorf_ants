@@ -35,7 +35,6 @@ const ANT_JOBS: [AntJob; 16] = [
     AntJob::Gatherer,
     AntJob::Gatherer,
     AntJob::Gatherer,
-    AntJob::Gatherer,
     AntJob::Offensive,
     AntJob::Offensive,
     AntJob::Offensive,
@@ -43,7 +42,8 @@ const ANT_JOBS: [AntJob; 16] = [
     AntJob::Offensive,
     AntJob::Offensive,
     AntJob::Offensive,
-    AntJob::Offensive,
+    AntJob::WasteMover,
+    AntJob::WasteMover,
 ];
 
 fn main() {
@@ -77,6 +77,9 @@ enum AntJob {
     Gatherer,
     /// These ants will seek to attack enemy ants, prioritiesed as followed: toxin > sugar > none.
     Offensive,
+    /// These ants will bring toxic waste into the enemy base that is currently leading the game.
+    /// If no more toxic waste is found they will performe the Offensive ants job.
+    WasteMover,
 }
 
 #[derive(Debug, Ord, PartialEq, PartialOrd, Eq)]
