@@ -12,13 +12,6 @@ pub fn turn(stream: &mut TcpStream, turn: &Turn, args: &Args) {
     for ant in &ants.ants {
         actions.push(ant.calc_move(&turn, &ants.ant_positions, args));
     }
-    //for (i, ant) in ants.ants.iter().enumerate() {
-    //    if i > 14 {
-    //        actions.push(ant.calc_move(&turn, &Vec::new()));
-    //    } else {
-    //        actions.push(5);
-    //    }
-    //}
     match stream.write_all(&actions) {
         Err(e) => println!("Error, unable to send action: {}", e),
         Ok(_ok) => (),

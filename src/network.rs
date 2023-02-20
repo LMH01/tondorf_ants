@@ -45,8 +45,6 @@ impl Turn {
         let mut teams: Vec<Team> = Vec::new();
         for i in 0..16 {
             let team = Team::new(input, i);
-            //let team = Team::new_new(b, i);
-            //println!("Team {}: {:?}", i, team);
             teams.push(team);
         }
         // Parse number of objects

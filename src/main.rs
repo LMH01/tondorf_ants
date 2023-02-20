@@ -60,11 +60,7 @@ fn main() {
             let mut turn_number = 1;
             loop {
                 br = BufReader::new(tcp_stream.try_clone().unwrap());
-                //let mut input_buffer = String::new();
-                //br.read_line(&mut input_buffer);
-                //println!("Out: {:?}", input_buffer);
                 let t = Turn::new(&mut br.bytes(), &mut tcp_stream);
-                //t.print(turn_number);
                 turn_number += 1;
                 turn(&mut tcp_stream, &t, &args);
             }
@@ -312,24 +308,12 @@ impl Object {
 
     /// Returns the cargo the ant is currently carrying or none if no cargo is carried.
     fn get_ant_cargo(&self) -> Option<AntCargo> {
-        // TODO Check if calculation is correct.
-        // Make parsing of bits work properly
-        // This is probably the cause for some problems
-        // But the problem might also be thæts ants are blocking each other
-
-        //if (self.b1.upper & (1 << 4-1)) != 0 {
-        //    return Some(AntCargo::ToxicWaste);
-        //}
-        //if (self.b1.upper & (1 << 2-1)) != 0 {
-        //    return Some(AntCargo::Sugar);
-        //}
         if self.b1.upper == 2 || self.b1.upper == 3 {
             return Some(AntCargo::Sugar);
         }
         if self.b1.upper == 4 || self.b1.upper == 5 {
             return Some(AntCargo::ToxicWaste);
         }
-        // Currently everything is interprted as sugar, probably serverside bug
         None
     }
 }
