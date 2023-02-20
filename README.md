@@ -11,5 +11,5 @@ This is a client implementation for this game: https://github.com/Tondorf/AntSer
 - [X] Make two types of own ants: Resource gatherer (will only gather sugar) and offensive ants. Offensive ants should attack enemies and deliver toxic wast to enemy bases. The ratio should be configurable by constants. Add config option that enables resource gatherers to also hunt low life enemies.
     - [ ] The toxic waste part is not yet implemented
 - [X] Own ants should retreat back to home base when below a certain life threshold
-- [ ] Improve pathfinding to homebase by avoiding walking into enemy homebase
+- [X] Improve pathfinding to homebase by avoiding walking into enemy homebase
 - [ ] Maybe make config values get provided by command line arguments instead of hard coded constants

@@ -21,6 +21,10 @@ const SERVER_ADDRESS: &str = "127.0.0.1:5000";
 const HOME_BASE_COORDINATES: [(u16, u16); 16] = [(100, 100), (300, 100), (500, 100),
     (700, 100), (900, 100), (900, 300), (900, 500), (900, 700), (900, 900), (700, 900),
     (500, 900), (300, 900), (100, 900), (100, 700), (100, 500), (100, 300)];
+/// Points where ants will navigate to to lead them to their homebase  without clashing into an enemy homebase.
+const HOME_BASE_BEACONS: [(u16, u16); 16] = [(110, 110), (300, 110), (500, 110), 
+    (700, 110), (890, 110), (890, 300), (890, 500), (890, 700), (890, 890), (700, 890),
+    (500, 890), (300, 890), (100, 890), (110, 700), (110, 500), (110, 300)];
 
 /// The configgured ant jobs. Ant with id 0 will have the job at index 0 and so forth.
 const ANT_JOBS: [AntJob; 16] = [

@@ -2,7 +2,7 @@ use std::{net::TcpStream, io::Write};
 
 use rand::Rng;
 
-use crate::{Ant, Ants, Turn, AntCargo, HOME_BASE_COORDINATES, TEAM_NAME, utils::{get_distance, next_point}, Position, AntJob};
+use crate::{Ant, Ants, Turn, AntCargo, HOME_BASE_COORDINATES, TEAM_NAME, utils::{get_distance, next_point}, Position, AntJob, HOME_BASE_BEACONS};
 
 /// Analyzes the current game state and makes an approprate turn by moving each ant one tile.
 pub fn turn(stream: &mut TcpStream, turn: &Turn) {
@@ -61,7 +61,13 @@ impl Ant {
     fn calc_gatherer_move(&self, turn: &Turn, ant_positions: &Vec<(u16, u16)>) -> u8 {
         // Move home when carrying sugar
         if self.cargo.is_some() && self.cargo.as_ref().unwrap() == &AntCargo::Sugar {
-            return self.get_direction(HOME_BASE_COORDINATES[turn.team_id as usize], ant_positions, &turn);
+            let distance = get_distance(self.pos, HOME_BASE_COORDINATES[turn.team_id as usize]);
+            // Move to beacon if to far away
+            if distance > 20 {
+                return self.get_direction(HOME_BASE_BEACONS[turn.team_id as usize], ant_positions, &turn);
+            } else {
+                return self.get_direction(HOME_BASE_COORDINATES[turn.team_id as usize], ant_positions, &turn);
+            }
         }
         // Search next piece of sugar
         match turn.nearest_sugar_coordinates(self.pos) {
