@@ -1,6 +1,7 @@
 use std::{io::{Bytes, BufReader}, net::TcpStream};
 
-use crate::{TEAM_NAME, Turn, utils::{read_to_two_byte_array, bytes_to_string}, Team, Object, Pair};
+use crate::{TEAM_NAME, Turn, utils::{read_to_two_byte_array, bytes_to_string, u8_vec_to_to_string}, Team, Object, Pair};
+use structure::{structure, structure_impl};
 
 const CLIENT_TYPE: u16 = 1;
 
@@ -38,13 +39,15 @@ impl Register {
 impl Turn {
 
     /// Creates a new `Turn` object by parsing the bytes of the tcp stream
-    pub fn new(input: &mut Bytes<BufReader<TcpStream>>) -> Self {
+    pub fn new(input: &mut Bytes<BufReader<TcpStream>>, b: &mut TcpStream) -> Self {
         // Parse team id
         let team_id: i16 = i16::from_le_bytes(read_to_two_byte_array(input).unwrap());// Frage: Welche Größenordnung? Muss hier little endian oder big endian benutzt werden?
         // Parse teams
         let mut teams: Vec<Team> = Vec::new();
         for i in 0..16 {
             let team = Team::new(input, i);
+            //let team = Team::new_new(b, i);
+            //println!("Team {}: {:?}", i, team);
             teams.push(team);
         }
         // Parse number of objects
@@ -61,6 +64,11 @@ impl Turn {
         }
     }
 
+    pub fn new_n(input: &mut Bytes<BufReader<TcpStream>>) -> Self {
+        let s = structure!("i");
+        panic!();
+    }
+
 }
 
 impl Team {
@@ -72,6 +80,17 @@ impl Team {
             points: u16::from_le_bytes(read_to_two_byte_array(bytes).unwrap()),
             remaining_ants: u16::from_le_bytes(read_to_two_byte_array(bytes).unwrap()),
             team_name: bytes_to_string(bytes),
+        }
+    }
+
+    fn new_new(bytes: &mut TcpStream, id: i16) -> Self {
+        let s = structure!("HH16S");
+        let (points, remaining_ants, team_name) = s.unpack_from(bytes).unwrap();
+        Self {
+            id,
+            points,
+            remaining_ants,
+            team_name:  u8_vec_to_to_string(team_name),
         }
     }
 

@@ -5,7 +5,7 @@ use std::{net::TcpStream, io::{BufReader, BufRead, Write, Read, Bytes}, panic::U
 
 use utils::{read_to_two_byte_array, bytes_to_string};
 
-use crate::{network::{Register}, ai::turn};
+use crate::{network::{Register}, ai::{turn, no_move}};
 
 /// Some utility functions to calculate some things
 mod utils;
@@ -54,8 +54,8 @@ fn main() {
                 //let mut input_buffer = String::new();
                 //br.read_line(&mut input_buffer);
                 //println!("Out: {:?}", input_buffer);
-                let t = Turn::new(&mut br.bytes());
-                //turn.print(turn_number);
+                let t = Turn::new(&mut br.bytes(), &mut tcp_stream);
+                //t.print(turn_number);
                 turn_number += 1;
                 turn(&mut tcp_stream, &t);
             }
@@ -197,8 +197,15 @@ impl Ants {
         }
         // Add dead ants to vec
         // This is done to make sure that an action for each ant is submitted to the server even when ants are dead
-        for id in missing_ants {
-            ants.push(Ant::new(id, (0, 0), 0, None, None));
+        for id in &missing_ants {
+            ants.push(Ant::new(*id, (0, 0), 0, None, None));
+        }
+        // Test if ants vec is filled with 16 ants, if not fix it at this point.
+        // This is a workaround for now unitl I figgure out why there is one ant missing
+        // from the ant vector when the ant is killed in this round
+        while ants.len() < 16 {
+            println!("WARNING: Missing ant detected, adding placeholder..");
+            ants.push(Ant::new(255, (0, 0), 0, None, None));
         }
         // Make sure that ants are sorted acending by id
         ants.sort();

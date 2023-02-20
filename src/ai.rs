@@ -25,6 +25,14 @@ pub fn turn(stream: &mut TcpStream, turn: &Turn) {
     }
 }
 
+pub fn no_move(stream: &mut TcpStream) {
+    let mut a = Vec::new();
+    for i in 0..15 {
+        a.push(5);
+    }
+    stream.write_all(&a);
+}
+
 impl Ant {
     /// Decides in wich direction this ant will move in the next turn
     fn calc_move(&self, turn: &Turn, ant_positions: &Vec<(u16, u16)>) -> u8 {

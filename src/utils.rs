@@ -55,6 +55,15 @@ pub fn bytes_to_string(input: &mut Bytes<BufReader<TcpStream>>) -> String {
     s
 }
 
+/// Converts the input u8 vector into a string
+pub fn u8_vec_to_to_string(input: Vec<u8>) -> String {
+    let mut s = String::new();
+    for c in input {
+        s.push(c as char);
+    }
+    s
+}
+
 /// Returns the positions of all ants in the vector
 pub fn ant_positions(ants: &Vec<Ant>) -> Vec<(u16, u16)> {
     let mut positions = Vec::new();
