@@ -22,6 +22,26 @@ const HOME_BASE_COORDINATES: [(u16, u16); 16] = [(100, 100), (300, 100), (500, 1
     (700, 100), (900, 100), (900, 300), (900, 500), (900, 700), (900, 900), (700, 900),
     (500, 900), (300, 900), (100, 900), (100, 700), (100, 500), (100, 300)];
 
+/// The configgured ant jobs. Ant with id 0 will have the job at index 0 and so forth.
+const ANT_JOBS: [AntJob; 16] = [
+    AntJob::Gatherer,
+    AntJob::Gatherer,
+    AntJob::Gatherer,
+    AntJob::Gatherer,
+    AntJob::Gatherer,
+    AntJob::Gatherer,
+    AntJob::Gatherer,
+    AntJob::Gatherer,
+    AntJob::Offensive,
+    AntJob::Offensive,
+    AntJob::Offensive,
+    AntJob::Offensive,
+    AntJob::Offensive,
+    AntJob::Offensive,
+    AntJob::Offensive,
+    AntJob::Offensive,
+];
+
 fn main() {
     println!("register: {:?}", &Register::new());
     match TcpStream::connect(&SERVER_ADDRESS) {
@@ -46,6 +66,15 @@ fn main() {
     }
 }
 
+/// Different types of ants
+#[derive(Debug, Ord, PartialEq, PartialOrd, Eq, Clone, Copy)]
+enum AntJob {
+    /// These ants will focus on gathering sugar back to the base
+    Gatherer,
+    /// These ants will seek to attack enemy ants, prioritiesed as followed: toxin > sugar > none.
+    Offensive,
+}
+
 #[derive(Debug, Ord, PartialEq, PartialOrd, Eq)]
 enum AntCargo {
     Sugar,
@@ -62,16 +91,19 @@ pub struct Ant {
     health: u8,
     /// Stores what the ant is carrying
     cargo: Option<AntCargo>,
+    /// The job this ant is directed to do
+    job: Option<AntJob>,
 }
 
 impl Ant {
     /// Creates a new ant
-    fn new(id: u8, pos: (u16, u16), health: u8, cargo: Option<AntCargo>) -> Self {
+    fn new(id: u8, pos: (u16, u16), health: u8, cargo: Option<AntCargo>, job: Option<AntJob>) -> Self {
         Self {
             id,
             pos,
             health,
             cargo,
+            job,
         }
     }
 
@@ -155,14 +187,18 @@ impl Ants {
             if !object.is_ant() {
                 continue;
             }
-            ants.push(Ant::new(object.b2.upper, object.pos,object.b2.lower, object.get_ant_cargo()));
+            if team_id == turn.team_id {
+                ants.push(Ant::new(object.b2.upper, object.pos,object.b2.lower, object.get_ant_cargo(), Some(ANT_JOBS[object.b2.upper as usize])));
+            } else {
+                ants.push(Ant::new(object.b2.upper, object.pos,object.b2.lower, object.get_ant_cargo(), None));
+            }
             ant_positions.push(object.pos);
             missing_ants.remove(&object.b2.upper);
         }
         // Add dead ants to vec
         // This is done to make sure that an action for each ant is submitted to the server even when ants are dead
         for id in missing_ants {
-            ants.push(Ant::new(id, (0, 0), 0, None));
+            ants.push(Ant::new(id, (0, 0), 0, None, None));
         }
         // Make sure that ants are sorted acending by id
         ants.sort();
@@ -229,7 +265,7 @@ impl Turn {
                 if ant.health <= 0 {
                     continue;
                 }
-                if live_threshold.is_some() && ant.health >= live_threshold.unwrap() {
+                if live_threshold.is_some() && ant.health > live_threshold.unwrap() {
                     continue;
                 }
                 ants.push(ant);
@@ -318,7 +354,7 @@ mod tests {
 
     #[test]
     fn test_ant_movement() {
-        let ant = Ant::new(0, (1, 1), 10, None);
+        let ant = Ant::new(0, (1, 1), 10, None, None);
         assert_eq!(ant.move_direction((0,0)), 1);
         assert_eq!(ant.move_direction((1,0)), 2);
         assert_eq!(ant.move_direction((2,0)), 3);
