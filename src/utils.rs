@@ -35,7 +35,7 @@ pub fn read_to_two_byte_array(input: &mut Bytes<BufReader<TcpStream>>) -> Result
     for i in 0..2 {
         let buf = input.next();
         if buf.is_none() {
-            return Err(String::from("To few elements!"));
+            return Err(String::from("Too few elements!"));
         }
         let buf = buf.unwrap();
         if buf.is_err() {
