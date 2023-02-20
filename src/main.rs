@@ -177,7 +177,7 @@ impl Ants {
         };
         let mut ants = Vec::new();
         let mut ant_positions = Vec::new();
-        let mut missing_ants:HashSet<u8> = (0..15).collect(); // Stores ids of ants that are not yet added to the ants vec
+        let mut missing_ants:HashSet<u8> = (0..16).collect(); // Stores ids of ants that are not yet added to the ants vec
         for object in &turn.objects {
             // Check object team id
             if i16::from(object.b1.lower) != team_id {
@@ -200,14 +200,6 @@ impl Ants {
         for id in &missing_ants {
             ants.push(Ant::new(*id, (0, 0), 0, None, None));
         }
-        // Test if ants vec is filled with 16 ants, if not fix it at this point.
-        // This is a workaround for now unitl I figgure out why there is one ant missing
-        // from the ant vector when the ant is killed in this round
-        while ants.len() < 16 {
-            println!("WARNING: Missing ant detected, adding placeholder..");
-            ants.push(Ant::new(255, (0, 0), 0, None, None));
-        }
-        // Make sure that ants are sorted acending by id
         ants.sort();
         Self {
             ants,

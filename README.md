@@ -13,5 +13,3 @@ This is a client implementation for this game: https://github.com/Tondorf/AntSer
 - [X] Own ants should retreat back to home base when below a certain life threshold
 - [ ] Improve pathfinding to homebase by avoiding walking into enemy homebase
 - [ ] Maybe make config values get provided by command line arguments instead of hard coded constants
-- [ ] Fix wired ant missing bug (main.rs:206-209)
-- Den structure kram wieder raus nehmen
