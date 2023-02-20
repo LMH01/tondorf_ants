@@ -1,6 +1,3 @@
-
-#![feature(iter_next_chunk)]
-
 use std::{net::TcpStream, io::{BufReader, BufRead, Write, Read, Bytes}, panic::UnwindSafe, collections::HashSet};
 
 use utils::{read_to_two_byte_array, bytes_to_string};
