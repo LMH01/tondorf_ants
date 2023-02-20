@@ -1,4 +1,4 @@
-use std::{io::{Bytes, BufReader}, net::TcpStream, fmt};
+use std::{io::{Bytes, BufReader}, net::TcpStream};
 
 use crate::Ant;
 

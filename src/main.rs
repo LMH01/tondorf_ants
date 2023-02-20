@@ -1,8 +1,6 @@
-use std::{net::TcpStream, io::{BufReader, BufRead, Write, Read, Bytes}, panic::UnwindSafe, collections::HashSet};
+use std::{net::TcpStream, io::{BufReader, Write, Read}, collections::HashSet};
 
-use utils::{read_to_two_byte_array, bytes_to_string};
-
-use crate::{network::{Register}, ai::{turn, no_move}};
+use crate::{network::Register, ai::turn};
 
 /// Some utility functions to calculate some things
 mod utils;
