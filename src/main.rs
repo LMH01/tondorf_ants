@@ -1,13 +1,20 @@
 
 #![feature(iter_next_chunk)]
 
-use std::{net::TcpStream, io::{BufReader, BufRead, Write, Read, Bytes}};
+use std::{net::TcpStream, io::{BufReader, BufRead, Write, Read, Bytes}, panic::UnwindSafe};
 
-use rand::Rng;
+use utils::{read_to_two_byte_array, bytes_to_string};
 
-const CLIENT_TYPE: u16 = 1;
-const TEAM_NAME: &str = "Rust_pirates";
-//const SERVER_ADDRESS: &str = "10.10.10.32:5000";
+use crate::{network::{Register}, ai::turn};
+
+/// Some utility functions to calculate some things
+mod utils;
+/// Functionality used to connect to the server
+mod network;
+/// Ant controll
+mod ai;
+
+pub const TEAM_NAME: &str = "Rust_pirates";
 const SERVER_ADDRESS: &str = "127.0.0.1:5000";
 
 /// All coordinates of the home bases, coordinates for base 0 are in index 0.
@@ -27,35 +34,15 @@ fn main() {
                 //let mut input_buffer = String::new();
                 //br.read_line(&mut input_buffer);
                 //println!("Out: {:?}", input_buffer);
-                let turn = Turn::new(&mut br.bytes());
+                let t = Turn::new(&mut br.bytes());
                 //turn.print(turn_number);
                 turn_number += 1;
-                action(&mut tcp_stream, &turn);
+                turn(&mut tcp_stream, &t);
             }
         }
         Err(e) => {
             println!("Error: {:?}", e)
         }
-    }
-}
-
-fn action(stream: &mut TcpStream, turn: &Turn) {
-    let mut actions: Vec<u8> = Vec::new();
-    let ants = Ants::from_turn(&turn);
-    ants.print_ants();
-    for ant in &ants.ants {
-        actions.push(ant.calc_move(&turn, &ants.ant_positions));
-    }
-    //for (i, ant) in ants.ants.iter().enumerate() {
-    //    if i > 14 {
-    //        actions.push(ant.calc_move(&turn, &Vec::new()));
-    //    } else {
-    //        actions.push(5);
-    //    }
-    //}
-    match stream.write_all(&actions) {
-        Err(e) => println!("Error, unable to send action: {}", e),
-        Ok(_ok) => (),
     }
 }
 
@@ -86,42 +73,6 @@ impl Ant {
             health,
             cargo,
         }
-    }
-
-    /// Decides in wich direction this ant will move in the next turn
-    fn calc_move(&self, turn: &Turn, ant_positions: &Vec<(u16, u16)>) -> u8 {
-        // Move to enemy base when carrying toxin (for now for exidential pickups when moving somewhere else)
-        if self.cargo.is_some() && self.cargo.as_ref().unwrap() == &AntCargo::ToxicWaste {
-            println!("leading team base coordinates: {:?}", turn.leading_team_base_coordinates());
-            return self.get_direction(turn.leading_team_base_coordinates(), ant_positions, &turn);
-        }
-        // Move home when carrying sugar
-        if self.cargo.is_some() && self.cargo.as_ref().unwrap() == &AntCargo::Sugar {
-            return self.get_direction(HOME_BASE_COORDINATES[turn.team_id as usize], ant_positions, &turn);
-        }
-        // Search next piece of sugar
-        match turn.nearest_sugar_coordinates(self.pos) {
-            Some(pos) => self.get_direction(pos, ant_positions, &turn),
-            None => 5,
-        }
-    }
-
-    /// Returns the direction in wich the ant should go this turn.
-    /// Takes into consideration if the most optimal path is blocked by another ant and changes direction accordingly.
-    /// Ants that already carry things will not walk over sugar/toxins.
-    fn get_direction(&self, target: (u16, u16), ant_positions: &Vec<(u16, u16)>, turn: &Turn) -> u8 {
-        let mut direction = self.move_direction(target);
-        for i in 0..9  {
-            let next_pos = next_point(self.pos, direction);
-            if !ant_positions.contains(&next_pos) {
-                break;
-            }
-            if self.cargo.is_some() && !turn.object_positions().contains(&next_pos) {
-                break;
-            }
-            direction = rand::thread_rng().gen_range(1..9);
-        }
-        direction
     }
 
     /// Returns the direction in which the ant should go to reach target.
@@ -170,22 +121,6 @@ impl PartialEq for Ant {
     }
 }
 
-/// Returns the point that will be reached from origin by going in the direction
-fn next_point(origin: (u16, u16), direction: u8) -> (u16, u16) {
-    match direction {
-        1 => (origin.0 - 1, origin.1 - 1),
-        2 => (origin.0, origin.1 - 1),
-        3 => (origin.0 + 1, origin.1 - 1),
-        4 => (origin.0 - 1, origin.1),
-        5 => origin,
-        6 => (origin.0 + 1, origin.1),
-        7 => (origin.0 - 1, origin.1 + 1),
-        8 => (origin.0, origin.1 + 1),
-        9 => (origin.0 + 1, origin.1 + 1),
-        _ => panic!("Invalid direction value"),
-    }
-}
-
 struct Ants {
     ants: Vec<Ant>,
     /// Stores all positions the ants are at the moment.
@@ -229,7 +164,7 @@ impl Ants {
 }
 
 #[derive(Debug)]
-struct Turn {
+pub struct Turn {
     /// Team id of client
     team_id: i16,
     teams: Vec<Team>,// 16 Teams are required
@@ -238,29 +173,7 @@ struct Turn {
 }
 
 impl Turn {
-    fn new(input: &mut Bytes<BufReader<TcpStream>>) -> Self {
-        // Parse team id
-        let team_id: i16 = i16::from_le_bytes(read_to_two_byte_array(input));// Frage: Welche Größenordnung? Muss hier little endian oder big endian benutzt werden?
-        // Parse teams
-        let mut teams: Vec<Team> = Vec::new();
-        for i in 0..16 {
-            let team = Team::new(input, i);
-            teams.push(team);
-        }
-        // Parse number of objects
-        let nr_of_objects = u16::from_le_bytes(read_to_two_byte_array(input));
-        let mut objects: Vec<Object> = Vec::new();
-        for _i in 0..nr_of_objects {
-            objects.push(Object::new(input));
-        }
-        Self {
-            team_id,
-            teams,
-            nr_of_objects,
-            objects
-        }
-    }
-
+    
     fn print(&self, turn_number: i32) {
         println!("Turn {}:", turn_number);
         println!("Team id: {}", self.team_id);
@@ -275,44 +188,6 @@ impl Turn {
         println!();
     }
 
-    /// Returns the coordinates of the base for the enemy team with the currently most points.
-    /// 
-    /// Used to lead ants with toxins to enemy bases.
-    fn leading_team_base_coordinates(&self) -> (u16, u16) {
-        let mut coordinates = HOME_BASE_COORDINATES[15];
-        let mut max_points = 0;
-        for team in &self.teams {
-            // Prevent own base form getting attacked.
-            if team.team_name == TEAM_NAME {
-                continue;
-            }
-            if max_points < team.points {
-                max_points = team.points;
-                coordinates = HOME_BASE_COORDINATES[team.id as usize];
-            }
-        }
-        coordinates
-    }
-
-    /// Returns the coordinates for the nearest piece of sugar or `None` if no sugar is found.
-    /// 
-    /// `pos` - the current position
-    fn nearest_sugar_coordinates(&self, pos: (u16, u16)) -> Option<(u16, u16)> {
-        let mut nearest_sugar: Option<(u16, u16)> = None;
-        let mut nearest_distance = u16::MAX;
-        for object in &self.objects {
-            let cargo = object.get_ant_cargo();
-            if cargo.is_some() && cargo.as_ref().unwrap() == &AntCargo::Sugar && !object.is_ant() {
-                let distance = get_distance(pos, object.pos);
-                if nearest_distance > distance {
-                    nearest_sugar = Some(object.pos);
-                    nearest_distance = distance;
-                }
-            }
-        }
-        nearest_sugar
-    }
-
     /// Returns a vector that contains all positions of objects. This includes ants.
     fn object_positions(&self) -> Vec<(u16, u16)> {
         let mut positions = Vec::new();
@@ -324,47 +199,12 @@ impl Turn {
 
 }
 
-/// Calculates the distance between two points
-fn get_distance(pos1: (u16, u16), pos2: (u16, u16)) -> u16 {
-    let x_diff = (pos1.0 as i32 - pos2.0 as i32).abs() as u32;
-    let y_diff = (pos1.1 as i32 - pos2.1 as i32).abs() as u32;
-    let distance_squared = x_diff * x_diff + y_diff * y_diff;
-    (distance_squared as f64).sqrt() as u16
-}
-
 #[derive(Debug)]
 struct Team {
     id: i16,
     points: u16,
     remaining_ants: u16,
     team_name: String, //16 bytes, if not exactly 16 this will brake
-}
-
-impl Team {
-    fn new(bytes: &mut Bytes<BufReader<TcpStream>>, id: i16) -> Self {
-        Self {
-            id,
-            points: u16::from_le_bytes(read_to_two_byte_array(bytes)),
-            remaining_ants: u16::from_le_bytes(read_to_two_byte_array(bytes)),
-            team_name: bytes_to_string(bytes),
-        }
-    }
-}
-
-fn read_to_two_byte_array(input: &mut Bytes<BufReader<TcpStream>>) -> [u8; 2] {
-    let mut bytes: [u8; 2] = [0u8; 2];
-    for i in 0..2 {
-        bytes[i] = input.next().unwrap().unwrap();
-    }
-    bytes
-}
-
-fn bytes_to_string(input: &mut Bytes<BufReader<TcpStream>>) -> String {
-    let mut s = String::new();
-    for i in 0..16 {
-        s.push(input.next().unwrap().unwrap() as char);
-    }
-    s
 }
 
 #[derive(Debug)]
@@ -375,17 +215,6 @@ struct Object {
 }
 
 impl Object {
-    fn new(input: &mut Bytes<BufReader<TcpStream>>) -> Self {
-        let b1 = Pair::new(input.next().unwrap().unwrap());
-        let b2 = Pair::new(input.next().unwrap().unwrap());
-        let x = u16::from_le_bytes(read_to_two_byte_array(input));
-        let y = u16::from_le_bytes(read_to_two_byte_array(input));
-        Self {
-            b1,
-            b2,
-            pos: (x, y),
-        }
-    }
 
     /// Returns true if this object is an ant
     fn is_ant(&self) -> bool {
@@ -424,50 +253,9 @@ struct Pair {
     lower: u8,
 }
 
-impl Pair {
-    fn new(byte: u8) -> Self {
-        Self {
-            upper: byte >> 4,
-            lower: byte & 0xf,
-        }
-    }
-}
-
-#[derive(Debug)]
-struct Register {
-    client_type: u16,
-    team_name: String,
-}
-
-impl Register {
-    fn new() -> Self {
-        if TEAM_NAME.len() > 16 {
-            panic!("Teamname to long, should be <= 16 chars long!");
-        }
-        Self {
-            client_type: CLIENT_TYPE, 
-            team_name: TEAM_NAME.to_string(), 
-        }
-    }    
-    
-    fn as_bytes(&self) -> [u8; 18] {
-        let mut out: Vec<u8> = Vec::new();
-        out.push(self.client_type.try_into().unwrap());
-        out.push(0);
-        for b in self.team_name.as_bytes() {
-            out.push(*b);
-        }
-        for i in self.team_name.len() .. 16 {
-            out.push(0);
-        }
-        out.try_into().unwrap()
-    }
-}
-
 #[cfg(test)]
 mod tests {
     use crate::Ant;
-
 
     #[test]
     fn test_ant_movement() {
