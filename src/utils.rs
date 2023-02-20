@@ -1,5 +1,7 @@
 use std::{io::{Bytes, BufReader}, net::TcpStream, fmt};
 
+use crate::Ant;
+
 /// Returns the point that will be reached from origin by going in the direction
 pub fn next_point(origin: (u16, u16), direction: u8) -> (u16, u16) {
     match direction {
@@ -51,4 +53,13 @@ pub fn bytes_to_string(input: &mut Bytes<BufReader<TcpStream>>) -> String {
         s.push(input.next().unwrap().unwrap() as char);
     }
     s
+}
+
+/// Returns the positions of all ants in the vector
+pub fn ant_positions(ants: &Vec<Ant>) -> Vec<(u16, u16)> {
+    let mut positions = Vec::new();
+    for ant in ants {
+        positions.push(ant.pos);
+    }
+    positions
 }

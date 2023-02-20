@@ -53,7 +53,7 @@ enum AntCargo {
 }
 
 #[derive(Debug, Ord, Eq)]
-struct Ant {
+pub struct Ant {
     /// Id of this ant
     id: u8,
     /// Current position on the board
@@ -121,6 +121,12 @@ impl PartialEq for Ant {
     }
 }
 
+impl Position for Ant {
+    fn pos(&self) -> (u16, u16) {
+        self.pos
+    }
+}
+
 struct Ants {
     ants: Vec<Ant>,
     /// Stores all positions the ants are at the moment.
@@ -130,8 +136,13 @@ struct Ants {
 
 impl Ants {
     /// Creates ants from the turn.
-    fn from_turn(turn: &Turn) -> Self {
-        let team_id = turn.team_id;
+    /// 
+    /// `team_id` - determines for which team the ants should be build. If `None` ants will be build for own team.
+    fn from_turn(turn: &Turn, team_id: Option<i16>) -> Self {
+        let team_id = match team_id {
+            None => turn.team_id,
+            Some(id) => id,
+        };
         let mut ants = Vec::new();
         let mut ant_positions = Vec::new();
         let mut missing_ants:HashSet<u8> = (0..15).collect(); // Stores ids of ants that are not yet added to the ants vec
@@ -204,6 +215,29 @@ impl Turn {
         positions
     }
 
+    /// Builds ants for all enemy teams.
+    /// Only includes ants that are alive.
+    /// 
+    /// - `live_threshold` can be set to limit the ants that are shown to only ants with less or equal amount of health.
+    fn enemy_ants(&self, live_threshold: Option<u8>) -> Vec<Ant> {
+        let mut ants = Vec::new();
+        for i in 0..15 {
+            if i == self.team_id {
+                continue;
+            }
+            for ant in Ants::from_turn(&self, Some(i)).ants {
+                if ant.health <= 0 {
+                    continue;
+                }
+                if live_threshold.is_some() && ant.health >= live_threshold.unwrap() {
+                    continue;
+                }
+                ants.push(ant);
+            }
+        }
+        ants
+    }
+
 }
 
 #[derive(Debug)]
@@ -253,11 +287,29 @@ impl Object {
     }
 }
 
+impl Position for Object {
+    fn pos(&self) -> (u16, u16) {
+        self.pos
+    }
+}
+
+impl Position for &Object {
+    fn pos(&self) -> (u16, u16) {
+        self.pos
+    }
+}
+
 /// Represents a data type that uses an u8 to store two 4 bit values.
 #[derive(Debug)]
 struct Pair {
     upper: u8,
     lower: u8,
+}
+
+/// Trait to get position of objects
+pub trait Position {
+    /// Returns the position
+    fn pos(&self) -> (u16, u16);
 }
 
 #[cfg(test)]

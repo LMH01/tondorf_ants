@@ -2,12 +2,12 @@ use std::{net::TcpStream, io::Write};
 
 use rand::Rng;
 
-use crate::{Ant, Ants, Turn, AntCargo, HOME_BASE_COORDINATES, TEAM_NAME, utils::{get_distance, next_point}};
+use crate::{Ant, Ants, Turn, AntCargo, HOME_BASE_COORDINATES, TEAM_NAME, utils::{get_distance, next_point}, Position};
 
 /// Analyzes the current game state and makes an approprate turn by moving each ant one tile.
 pub fn turn(stream: &mut TcpStream, turn: &Turn) {
     let mut actions: Vec<u8> = Vec::new();
-    let ants = Ants::from_turn(&turn);
+    let ants = Ants::from_turn(&turn, None);
     ants.print_ants();
     for ant in &ants.ants {
         actions.push(ant.calc_move(&turn, &ants.ant_positions));
@@ -32,6 +32,18 @@ impl Ant {
         if self.health == 0 {
             return 5;
         }
+        // Move home when lifes <= 3
+        if self.health <= 3 {
+            return self.get_direction(HOME_BASE_COORDINATES[turn.team_id as usize], ant_positions, &turn);
+        }
+        // Attack clostest enemy ant when ant is below 5 health
+        if true {
+            let nearest_enemy = turn.nearest(self.pos, &turn.enemy_ants(Some(5)));
+            if nearest_enemy.is_some() {
+                return self.get_direction(nearest_enemy.unwrap(), ant_positions, turn);
+            }
+        }
+
         // Move to enemy base when carrying toxin (for now for exidential pickups when moving somewhere else)
         if self.cargo.is_some() && self.cargo.as_ref().unwrap() == &AntCargo::ToxicWaste {
             println!("leading team base coordinates: {:?}", turn.leading_team_base_coordinates());
@@ -93,19 +105,27 @@ impl Turn {
     /// 
     /// `pos` - the current position
     fn nearest_sugar_coordinates(&self, pos: (u16, u16)) -> Option<(u16, u16)> {
-        let mut nearest_sugar: Option<(u16, u16)> = None;
-        let mut nearest_distance = u16::MAX;
+        let mut sugar_pieces = Vec::new();
         for object in &self.objects {
             let cargo = object.get_ant_cargo();
             if cargo.is_some() && cargo.as_ref().unwrap() == &AntCargo::Sugar && !object.is_ant() {
-                let distance = get_distance(pos, object.pos);
-                if nearest_distance > distance {
-                    nearest_sugar = Some(object.pos);
-                    nearest_distance = distance;
-                }
+                sugar_pieces.push(object);
             }
         }
-        nearest_sugar
+        self.nearest(pos, &sugar_pieces)
+    }
+
+    pub fn nearest<T: Position>(&self, pos: (u16, u16), input: &Vec<T>) -> Option<(u16, u16)> {
+        let mut nearest: Option<(u16, u16)> = None;
+        let mut nearest_distance = u16::MAX;
+        for object in input {
+            let distance = get_distance(pos, object.pos());
+            if nearest_distance > distance {
+                nearest = Some(object.pos());
+                nearest_distance = distance;
+            }
+        }
+        nearest
     }
     
 }
