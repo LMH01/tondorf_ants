@@ -28,6 +28,10 @@ pub fn turn(stream: &mut TcpStream, turn: &Turn) {
 impl Ant {
     /// Decides in wich direction this ant will move in the next turn
     fn calc_move(&self, turn: &Turn, ant_positions: &Vec<(u16, u16)>) -> u8 {
+        // Do nothing when dead
+        if self.health == 0 {
+            return 5;
+        }
         // Move to enemy base when carrying toxin (for now for exidential pickups when moving somewhere else)
         if self.cargo.is_some() && self.cargo.as_ref().unwrap() == &AntCargo::ToxicWaste {
             println!("leading team base coordinates: {:?}", turn.leading_team_base_coordinates());

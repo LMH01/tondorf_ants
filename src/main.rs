@@ -1,7 +1,7 @@
 
 #![feature(iter_next_chunk)]
 
-use std::{net::TcpStream, io::{BufReader, BufRead, Write, Read, Bytes}, panic::UnwindSafe};
+use std::{net::TcpStream, io::{BufReader, BufRead, Write, Read, Bytes}, panic::UnwindSafe, collections::HashSet};
 
 use utils::{read_to_two_byte_array, bytes_to_string};
 
@@ -134,6 +134,7 @@ impl Ants {
         let team_id = turn.team_id;
         let mut ants = Vec::new();
         let mut ant_positions = Vec::new();
+        let mut missing_ants:HashSet<u8> = (0..15).collect(); // Stores ids of ants that are not yet added to the ants vec
         for object in &turn.objects {
             // Check object team id
             if i16::from(object.b1.lower) != team_id {
@@ -145,6 +146,12 @@ impl Ants {
             }
             ants.push(Ant::new(object.b2.upper, object.pos,object.b2.lower, object.get_ant_cargo()));
             ant_positions.push(object.pos);
+            missing_ants.remove(&object.b2.upper);
+        }
+        // Add dead ants to vec
+        // This is done to make sure that an action for each ant is submitted to the server even when ants are dead
+        for id in missing_ants {
+            ants.push(Ant::new(id, (0, 0), 0, None));
         }
         // Make sure that ants are sorted acending by id
         ants.sort();
