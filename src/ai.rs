@@ -2,15 +2,15 @@ use std::{net::TcpStream, io::Write};
 
 use rand::Rng;
 
-use crate::{Ant, Ants, Turn, AntCargo, HOME_BASE_COORDINATES, TEAM_NAME, utils::{get_distance, next_point}, Position, AntJob, HOME_BASE_BEACONS, Object};
+use crate::{Ant, Ants, Turn, AntCargo, HOME_BASE_COORDINATES, utils::{get_distance, next_point}, Position, AntJob, HOME_BASE_BEACONS, Object, cli::Args};
 
 /// Analyzes the current game state and makes an approprate turn by moving each ant one tile.
-pub fn turn(stream: &mut TcpStream, turn: &Turn) {
+pub fn turn(stream: &mut TcpStream, turn: &Turn, args: &Args) {
     let mut actions: Vec<u8> = Vec::new();
     let ants = Ants::from_turn(&turn, None);
     ants.print_ants();
     for ant in &ants.ants {
-        actions.push(ant.calc_move(&turn, &ants.ant_positions));
+        actions.push(ant.calc_move(&turn, &ants.ant_positions, args));
     }
     //for (i, ant) in ants.ants.iter().enumerate() {
     //    if i > 14 {
@@ -35,7 +35,7 @@ pub fn no_move(stream: &mut TcpStream) {
 
 impl Ant {
     /// Decides in wich direction this ant will move in the next turn
-    fn calc_move(&self, turn: &Turn, ant_positions: &Vec<(u16, u16)>) -> u8 {
+    fn calc_move(&self, turn: &Turn, ant_positions: &Vec<(u16, u16)>, args: &Args) -> u8 {
         // Do nothing when dead
         if self.health == 0 {
             return 5;
@@ -46,8 +46,8 @@ impl Ant {
         }
         // Move to enemy base when carrying toxin
         if self.cargo.is_some() && self.cargo.as_ref().unwrap() == &AntCargo::ToxicWaste {
-            println!("leading team base coordinates: {:?}", turn.leading_team_base_coordinates());
-            return self.get_direction(turn.leading_team_base_coordinates(), ant_positions, &turn);
+            println!("leading team base coordinates: {:?}", turn.leading_team_base_coordinates(args));
+            return self.get_direction(turn.leading_team_base_coordinates(args), ant_positions, &turn);
         }
         match self.job.unwrap() {
             AntJob::Gatherer => self.calc_gatherer_move(turn, ant_positions),
@@ -91,7 +91,7 @@ impl Ant {
         self.calc_gatherer_move(turn, ant_positions)
     }
 
-    /// Decides in which direction the ant moves in the next turn.
+    /// Decides in which direction the ant movesTEAM_NAME in the next turn.
     /// 
     /// This function focuses on bring waste into enemy bases.
     fn calc_waste_mover_move(&self, turn: &Turn, ant_positions: &Vec<(u16, u16)>) -> u8 {
@@ -127,12 +127,12 @@ impl Turn {
     /// Returns the coordinates of the base for the enemy team with the currently most points.
     /// 
     /// Used to lead ants with toxins to enemy bases.
-    fn leading_team_base_coordinates(&self) -> (u16, u16) {
+    fn leading_team_base_coordinates(&self, args: &Args) -> (u16, u16) {
         let mut coordinates = HOME_BASE_COORDINATES[15];
         let mut max_points = 0;
         for team in &self.teams {
             // Prevent own base form getting attacked.
-            if team.team_name == TEAM_NAME {
+            if team.team_name == args.team_name {
                 continue;
             }
             if max_points < team.points {

@@ -1,4 +1,8 @@
-use std::{net::TcpStream, io::{BufReader, Write, Read}, collections::HashSet};
+use std::{net::{TcpStream, Ipv4Addr}, io::{BufReader, Write, Read}, collections::HashSet};
+
+use cli::Args;
+
+use clap::Parser;
 
 use crate::{network::Register, ai::turn};
 
@@ -8,9 +12,11 @@ mod utils;
 mod network;
 /// Ant controll
 mod ai;
+/// Command line argument parsing
+mod cli;
 
-pub const TEAM_NAME: &str = "Rust_pirates";
-const SERVER_ADDRESS: &str = "127.0.0.1:5000";
+//pub const TEAM_NAME: &str = "Rust_pirates";
+//const SERVER_ADDRESS: &str = "127.0.0.1:5000";
 
 /// All coordinates of the home bases, coordinates for base 0 are in index 0.
 const HOME_BASE_COORDINATES: [(u16, u16); 16] = [(100, 100), (300, 100), (500, 100),
@@ -42,11 +48,15 @@ const ANT_JOBS: [AntJob; 16] = [
 ];
 
 fn main() {
-    println!("register: {:?}", &Register::new());
-    match TcpStream::connect(&SERVER_ADDRESS) {
+    let args = Args::parse();
+    let mut ip = String::from(args.ip.to_string());
+    ip.push(':');
+    ip.push_str(&args.port.to_string());
+    println!("{:?}", ip);
+    match TcpStream::connect(ip) {
         Ok(mut tcp_stream) => {
             let mut br = BufReader::new(tcp_stream.try_clone().expect(""));
-            tcp_stream.write_all(&Register::new().as_bytes());
+            tcp_stream.write_all(&Register::new(&args).as_bytes());
             let mut turn_number = 1;
             loop {
                 br = BufReader::new(tcp_stream.try_clone().unwrap());
@@ -56,7 +66,7 @@ fn main() {
                 let t = Turn::new(&mut br.bytes(), &mut tcp_stream);
                 //t.print(turn_number);
                 turn_number += 1;
-                turn(&mut tcp_stream, &t);
+                turn(&mut tcp_stream, &t, &args);
             }
         }
         Err(e) => {

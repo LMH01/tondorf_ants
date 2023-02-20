@@ -1,6 +1,6 @@
 use std::{io::{Bytes, BufReader}, net::TcpStream};
 
-use crate::{TEAM_NAME, Turn, utils::{read_to_two_byte_array, bytes_to_string}, Team, Object, Pair};
+use crate::{Turn, utils::{read_to_two_byte_array, bytes_to_string}, Team, Object, Pair, cli::Args};
 
 const CLIENT_TYPE: u16 = 1;
 
@@ -11,13 +11,13 @@ pub struct Register {
 }
 
 impl Register {
-    pub fn new() -> Self {
-        if TEAM_NAME.len() > 16 {
+    pub fn new(args: &Args) -> Self {
+        if args.team_name.len() > 16 {
             panic!("Teamname to long, should be <= 16 chars long!");
         }
         Self {
             client_type: CLIENT_TYPE, 
-            team_name: TEAM_NAME.to_string(), 
+            team_name: args.team_name.to_string(), 
         }
     }    
     
