@@ -68,7 +68,7 @@ impl Ant {
     fn calc_offensive_move(&self, turn: &Turn, ant_positions: &Vec<(u16, u16)>) -> u8 {
         // Attack clostest enemy ant when ant is below 5 health
         if true {
-            let nearest_enemy = turn.nearest(self.pos, &turn.enemy_ants(Some(10)));
+            let nearest_enemy = turn.nearest(self.pos, &turn.enemy_ants(Some(5)));
             if nearest_enemy.is_some() {
                 return self.get_direction(nearest_enemy.unwrap(), ant_positions, turn);
             }
