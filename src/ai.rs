@@ -46,7 +46,6 @@ impl Ant {
         }
         // Move to enemy base when carrying toxin
         if self.cargo.is_some() && self.cargo.as_ref().unwrap() == &AntCargo::ToxicWaste {
-            println!("leading team base coordinates: {:?}", turn.leading_team_base_coordinates(args));
             return self.get_direction(turn.leading_team_base_coordinates(args), ant_positions, &turn);
         }
         match self.job.unwrap() {
