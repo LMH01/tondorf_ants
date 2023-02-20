@@ -1,7 +1,6 @@
 use std::{io::{Bytes, BufReader}, net::TcpStream};
 
 use crate::{TEAM_NAME, Turn, utils::{read_to_two_byte_array, bytes_to_string, u8_vec_to_to_string}, Team, Object, Pair};
-use structure::{structure, structure_impl};
 
 const CLIENT_TYPE: u16 = 1;
 
@@ -64,11 +63,6 @@ impl Turn {
         }
     }
 
-    pub fn new_n(input: &mut Bytes<BufReader<TcpStream>>) -> Self {
-        let s = structure!("i");
-        panic!();
-    }
-
 }
 
 impl Team {
@@ -80,17 +74,6 @@ impl Team {
             points: u16::from_le_bytes(read_to_two_byte_array(bytes).unwrap()),
             remaining_ants: u16::from_le_bytes(read_to_two_byte_array(bytes).unwrap()),
             team_name: bytes_to_string(bytes),
-        }
-    }
-
-    fn new_new(bytes: &mut TcpStream, id: i16) -> Self {
-        let s = structure!("HH16S");
-        let (points, remaining_ants, team_name) = s.unpack_from(bytes).unwrap();
-        Self {
-            id,
-            points,
-            remaining_ants,
-            team_name:  u8_vec_to_to_string(team_name),
         }
     }
 

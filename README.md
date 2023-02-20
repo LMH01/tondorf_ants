@@ -14,3 +14,4 @@ This is a client implementation for this game: https://github.com/Tondorf/AntSer
 - [ ] Improve pathfinding to homebase by avoiding walking into enemy homebase
 - [ ] Maybe make config values get provided by command line arguments instead of hard coded constants
 - [ ] Fix wired ant missing bug (main.rs:206-209)
+- Den structure kram wieder raus nehmen
