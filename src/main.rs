@@ -1,4 +1,4 @@
-use std::{net::{TcpStream, Ipv4Addr}, io::{BufReader, Write, Read}, collections::HashSet, process::exit};
+use std::{net::{TcpStream}, io::{BufReader, Write, Read}, collections::HashSet, process::exit};
 
 use cli::Args;
 
@@ -35,20 +35,18 @@ fn main() {
         print_ant_help();
         exit(0);
     }
-    let mut ip = String::from(args.ip.to_string());
+    let mut ip = args.ip.to_string();
     ip.push(':');
     ip.push_str(&args.port.to_string());
     let ant_jobs = set_ant_jobs(&args);
     match TcpStream::connect(ip) {
         Ok(mut tcp_stream) => {
             println!("Connection established!");
-            let mut br = BufReader::new(tcp_stream.try_clone().expect(""));
-            tcp_stream.write_all(&Register::new(&args).as_bytes());
-            let mut turn_number = 1;
+            let mut br;
+            tcp_stream.write_all(&Register::new(&args).as_bytes()).expect("Error writing data to tcp stream!");
             loop {
                 br = BufReader::new(tcp_stream.try_clone().unwrap());
-                let t = Turn::new(&mut br.bytes(), &mut tcp_stream);
-                turn_number += 1;
+                let t = Turn::new(&mut br.bytes());
                 turn(&mut tcp_stream, &t, &args, &ant_jobs);
             }
         }
@@ -109,7 +107,7 @@ fn set_ant_jobs(args: &Args) -> Vec<AntJob>  {
         }
     } else if args.random_jobs {
         // Select random jobs for ants
-        for i in 0..16 {
+        for _i in 0..16 {
             let random = thread_rng().gen_range(0..3);
             match random {
                 0 => jobs.push(AntJob::Gatherer),
@@ -143,7 +141,7 @@ enum AntCargo {
     ToxicWaste,
 }
 
-#[derive(Debug, Ord, Eq)]
+#[derive(Debug, Eq)]
 pub struct Ant {
     /// Id of this ant
     id: u8,
@@ -195,7 +193,7 @@ impl Ant {
         if self.pos.0 > target.0 && self.pos.1 == target.1 {
             return 4;
         }
-        return 5
+        5
     }
 }
 
@@ -205,13 +203,15 @@ impl PartialOrd for Ant {
     }
 }
 
+impl Ord for Ant {
+    fn cmp(&self, other: &Self) -> std::cmp::Ordering {
+        self.partial_cmp(other).unwrap()
+    }
+}
+
 impl PartialEq for Ant {
     fn eq(&self, other: &Self) -> bool {
         self.id == other.id
-    }
-
-    fn ne(&self, other: &Self) -> bool {
-        self.id != other.id
     }
 }
 
@@ -232,7 +232,7 @@ impl Ants {
     /// Creates ants from the turn.
     /// 
     /// `team_id` - determines for which team the ants should be build. If `None` ants will be build for own team.
-    fn from_turn(turn: &Turn, team_id: Option<i16>, ant_jobs: &Vec<AntJob>) -> Self {
+    fn from_turn(turn: &Turn, team_id: Option<i16>, ant_jobs: &[AntJob]) -> Self {
         let team_id = match team_id {
             None => turn.team_id,
             Some(id) => id,
@@ -283,25 +283,11 @@ pub struct Turn {
     /// Team id of client
     team_id: i16,
     teams: Vec<Team>,// 16 Teams are required
-    nr_of_objects: u16,
+    _nr_of_objects: u16,
     objects: Vec<Object>,
 }
 
 impl Turn {
-    
-    fn print(&self, turn_number: i32) {
-        println!("Turn {}:", turn_number);
-        println!("Team id: {}", self.team_id);
-        println!("Teams:");
-        for team in &self.teams {
-            println!("{:?}", team);
-        }
-        println!("Number of Objects: {}", self.nr_of_objects);
-        for object in &self.objects {
-            println!("Object: {:?}", object);
-        }
-        println!();
-    }
 
     /// Returns a vector that contains all positions of objects. This includes ants.
     fn object_positions(&self) -> Vec<(u16, u16)> {
@@ -316,14 +302,14 @@ impl Turn {
     /// Only includes ants that are alive.
     /// 
     /// - `live_threshold` can be set to limit the ants that are shown to only ants with less or equal amount of health.
-    fn enemy_ants(&self, live_threshold: Option<u8>, ant_jobs: &Vec<AntJob>) -> Vec<Ant> {
+    fn enemy_ants(&self, live_threshold: Option<u8>, ant_jobs: &[AntJob]) -> Vec<Ant> {
         let mut ants = Vec::new();
         for i in 0..15 {
             if i == self.team_id {
                 continue;
             }
-            for ant in Ants::from_turn(&self, Some(i), ant_jobs).ants {
-                if ant.health <= 0 {
+            for ant in Ants::from_turn(self, Some(i), ant_jobs).ants {
+                if ant.health == 0 {
                     continue;
                 }
                 if live_threshold.is_some() && ant.health > live_threshold.unwrap() {
@@ -341,8 +327,8 @@ impl Turn {
 struct Team {
     id: i16,
     points: u16,
-    remaining_ants: u16,
-    team_name: String, //16 bytes, if not exactly 16 this will brake
+    _remaining_ants: u16,
+    _team_name: String, //16 bytes, if not exactly 16 this will brake
 }
 
 #[derive(Debug)]
@@ -356,8 +342,7 @@ impl Object {
 
     /// Returns true if this object is an ant
     fn is_ant(&self) -> bool {
-        (self.b1.upper & (1 << 1-1)) != 0
-        //true
+        (self.b1.upper & (1 << 0)) != 0
     }
 
     /// Returns the cargo the ant is currently carrying or none if no cargo is carried.

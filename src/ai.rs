@@ -2,17 +2,17 @@ use std::{net::TcpStream, io::Write};
 
 use rand::Rng;
 
-use crate::{Ant, Ants, Turn, AntCargo, HOME_BASE_COORDINATES, utils::{get_distance, next_point}, Position, AntJob, HOME_BASE_BEACONS, Object, cli::Args};
+use crate::{Ant, Ants, Turn, AntCargo, HOME_BASE_COORDINATES, utils::{get_distance, next_point}, Position, AntJob, HOME_BASE_BEACONS, cli::Args};
 
 /// Analyzes the current game state and makes an approprate turn by moving each ant one tile.
-pub fn turn(stream: &mut TcpStream, turn: &Turn, args: &Args, ant_jobs: &Vec<AntJob>) {
+pub fn turn(stream: &mut TcpStream, turn: &Turn, args: &Args, ant_jobs: &[AntJob]) {
     let mut actions: Vec<u8> = Vec::new();
-    let ants = Ants::from_turn(&turn, None, ant_jobs);
+    let ants = Ants::from_turn(turn, None, ant_jobs);
     if args.print_ants {
         ants.print_ants();
     }
     for ant in &ants.ants {
-        actions.push(ant.calc_move(&turn, &ants.ant_positions, args, ant_jobs));
+        actions.push(ant.calc_move(turn, &ants.ant_positions, args, ant_jobs));
     }
     match stream.write_all(&actions) {
         Err(e) => println!("Error, unable to send action: {}", e),
@@ -20,28 +20,20 @@ pub fn turn(stream: &mut TcpStream, turn: &Turn, args: &Args, ant_jobs: &Vec<Ant
     }
 }
 
-pub fn no_move(stream: &mut TcpStream) {
-    let mut a = Vec::new();
-    for i in 0..15 {
-        a.push(5);
-    }
-    stream.write_all(&a);
-}
-
 impl Ant {
     /// Decides in wich direction this ant will move in the next turn
-    fn calc_move(&self, turn: &Turn, ant_positions: &Vec<(u16, u16)>, args: &Args, ant_jobs: &Vec<AntJob>) -> u8 {
+    fn calc_move(&self, turn: &Turn, ant_positions: &[(u16, u16)], args: &Args, ant_jobs: &[AntJob]) -> u8 {
         // Do nothing when dead
         if self.health == 0 {
             return 5;
         }
         // Move home when lifes <= 3
         if self.health <= 3 {
-            return self.get_direction(HOME_BASE_COORDINATES[turn.team_id as usize], ant_positions, &turn);
+            return self.get_direction(HOME_BASE_COORDINATES[turn.team_id as usize], ant_positions, turn);
         }
         // Move to enemy base when carrying toxin
         if self.cargo.is_some() && self.cargo.as_ref().unwrap() == &AntCargo::ToxicWaste {
-            return self.get_direction(turn.leading_team_base_coordinates(turn), ant_positions, &turn);
+            return self.get_direction(turn.leading_team_base_coordinates(turn), ant_positions, turn);
         }
         match self.job.unwrap() {
             AntJob::Gatherer => self.calc_gatherer_move(turn, ant_positions, args, ant_jobs),
@@ -53,12 +45,12 @@ impl Ant {
     /// Decides in which direction the ant moves in the next turn.
     /// 
     /// This function focuses on ressource gathering.
-    fn calc_gatherer_move(&self, turn: &Turn, ant_positions: &Vec<(u16, u16)>, args: &Args, ant_jobs: &Vec<AntJob>) -> u8 {
+    fn calc_gatherer_move(&self, turn: &Turn, ant_positions: &[(u16, u16)], args: &Args, ant_jobs: &[AntJob]) -> u8 {
         // Attack nearest ant with health <= 3 if hunt is enabled
         if args.hunt {
             let nearest_enemy = turn.nearest(self.pos, &turn.enemy_ants(Some(3), ant_jobs));
-            if nearest_enemy.is_some() {
-                return self.get_direction(nearest_enemy.unwrap(), ant_positions, turn);
+            if let Some(ne) = nearest_enemy {
+                return self.get_direction(ne, ant_positions, turn);
             }
         }
         // Move home when carrying sugar
@@ -66,14 +58,14 @@ impl Ant {
             let distance = get_distance(self.pos, HOME_BASE_COORDINATES[turn.team_id as usize]);
             // Move to beacon if to far away
             if distance > 20 {
-                return self.get_direction(HOME_BASE_BEACONS[turn.team_id as usize], ant_positions, &turn);
+                return self.get_direction(HOME_BASE_BEACONS[turn.team_id as usize], ant_positions, turn);
             } else {
-                return self.get_direction(HOME_BASE_COORDINATES[turn.team_id as usize], ant_positions, &turn);
+                return self.get_direction(HOME_BASE_COORDINATES[turn.team_id as usize], ant_positions, turn);
             }
         }
         // Search next piece of sugar
         match turn.nearest_sugar_coordinates(self.pos) {
-            Some(pos) => self.get_direction(pos, ant_positions, &turn),
+            Some(pos) => self.get_direction(pos, ant_positions, turn),
             None => 5,
         }
     }
@@ -81,12 +73,12 @@ impl Ant {
     /// Decides in which direction the ant moves in the next turn.
     /// 
     /// This function focuses on offensive action against enemy ants.
-    fn calc_offensive_move(&self, turn: &Turn, ant_positions: &Vec<(u16, u16)>, args: &Args, ant_jobs: &Vec<AntJob>) -> u8 {
+    fn calc_offensive_move(&self, turn: &Turn, ant_positions: &[(u16, u16)], args: &Args, ant_jobs: &[AntJob]) -> u8 {
         // Attack clostest enemy ant when ant is below 5 health
         if true {
             let nearest_enemy = turn.nearest(self.pos, &turn.enemy_ants(Some(args.max_health), ant_jobs));
-            if nearest_enemy.is_some() {
-                return self.get_direction(nearest_enemy.unwrap(), ant_positions, turn);
+            if let Some(ne) = nearest_enemy {
+                return self.get_direction(ne, ant_positions, turn);
             }
         }
         self.calc_gatherer_move(turn, ant_positions, args, ant_jobs)
@@ -95,10 +87,9 @@ impl Ant {
     /// Decides in which direction the ant movesTEAM_NAME in the next turn.
     /// 
     /// This function focuses on bring waste into enemy bases.
-    fn calc_waste_mover_move(&self, turn: &Turn, ant_positions: &Vec<(u16, u16)>, args: &Args, ant_jobs: &Vec<AntJob>) -> u8 {
-        match turn.nearest_toxic_waste_coordinates(self.pos) {
-            Some(pos) => return self.get_direction(pos, ant_positions, turn),
-            None => (),
+    fn calc_waste_mover_move(&self, turn: &Turn, ant_positions: &[(u16, u16)], args: &Args, ant_jobs: &[AntJob]) -> u8 {
+        if let Some(pos) = turn.nearest_toxic_waste_coordinates(self.pos) {
+            return self.get_direction(pos, ant_positions, turn)
         }
         self.calc_offensive_move(turn, ant_positions, args, ant_jobs)
     }
@@ -106,9 +97,9 @@ impl Ant {
     /// Returns the direction in wich the ant should go this turn.
     /// Takes into consideration if the most optimal path is blocked by another ant and changes direction accordingly.
     /// Ants that already carry things will not walk over sugar/toxins.
-    fn get_direction(&self, target: (u16, u16), ant_positions: &Vec<(u16, u16)>, turn: &Turn) -> u8 {
+    fn get_direction(&self, target: (u16, u16), ant_positions: &[(u16, u16)], turn: &Turn) -> u8 {
         let mut direction = self.move_direction(target);
-        for i in 0..9  {
+        for _i in 0..9  {
             let next_pos = next_point(self.pos, direction);
             if !ant_positions.contains(&next_pos) {
                 break;

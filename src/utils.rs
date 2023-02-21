@@ -1,7 +1,5 @@
 use std::{io::{Bytes, BufReader}, net::TcpStream};
 
-use crate::Ant;
-
 /// Returns the point that will be reached from origin by going in the direction
 pub fn next_point(origin: (u16, u16), direction: u8) -> (u16, u16) {
     match direction {
@@ -32,16 +30,16 @@ pub fn get_distance(pos1: (u16, u16), pos2: (u16, u16)) -> u16 {
 /// Panics when the iterator does not contains two elements or when the tcp stream contains errored elements.
 pub fn read_to_two_byte_array(input: &mut Bytes<BufReader<TcpStream>>) -> Result<[u8; 2], String> {
     let mut bytes: [u8; 2] = [0u8; 2];
-    for i in 0..2 {
+    for i in &mut bytes {
         let buf = input.next();
         if buf.is_none() {
             return Err(String::from("Too few elements!"));
         }
         let buf = buf.unwrap();
         if buf.is_err() {
-            return Err(String::from(format!("{:?}", buf.err())));
+            return Err(format!("{:?}", buf.err()));
         }
-        bytes[i] = buf.unwrap();
+        *i = buf.unwrap();
     }
     Ok(bytes)
 }
@@ -49,7 +47,7 @@ pub fn read_to_two_byte_array(input: &mut Bytes<BufReader<TcpStream>>) -> Result
 /// Takes 16 byte from the iterator and parses tham as a string.
 pub fn bytes_to_string(input: &mut Bytes<BufReader<TcpStream>>) -> String {
     let mut s = String::new();
-    for i in 0..16 {
+    for _i in 0..16 {
         s.push(input.next().unwrap().unwrap() as char);
     }
     s

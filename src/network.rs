@@ -28,7 +28,7 @@ impl Register {
         for b in self.team_name.as_bytes() {
             out.push(*b);
         }
-        for i in self.team_name.len() .. 16 {
+        for _i in self.team_name.len() .. 16 {
             out.push(0);
         }
         out.try_into().unwrap()
@@ -38,7 +38,7 @@ impl Register {
 impl Turn {
 
     /// Creates a new `Turn` object by parsing the bytes of the tcp stream
-    pub fn new(input: &mut Bytes<BufReader<TcpStream>>, b: &mut TcpStream) -> Self {
+    pub fn new(input: &mut Bytes<BufReader<TcpStream>>) -> Self {
         // Parse team id
         let team_id: i16 = i16::from_le_bytes(read_to_two_byte_array(input).unwrap());// Frage: Welche Größenordnung? Muss hier little endian oder big endian benutzt werden?
         // Parse teams
@@ -56,7 +56,7 @@ impl Turn {
         Self {
             team_id,
             teams,
-            nr_of_objects,
+            _nr_of_objects: nr_of_objects,
             objects
         }
     }
@@ -70,8 +70,8 @@ impl Team {
         Self {
             id,
             points: u16::from_le_bytes(read_to_two_byte_array(bytes).unwrap()),
-            remaining_ants: u16::from_le_bytes(read_to_two_byte_array(bytes).unwrap()),
-            team_name: bytes_to_string(bytes),
+            _remaining_ants: u16::from_le_bytes(read_to_two_byte_array(bytes).unwrap()),
+            _team_name: bytes_to_string(bytes),
         }
     }
 
