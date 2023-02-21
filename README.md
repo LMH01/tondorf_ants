@@ -13,4 +13,5 @@ This is a client implementation for this game: https://github.com/Tondorf/AntSer
 - [X] Improve pathfinding to homebase by avoiding walking into enemy homebase
 - [X] Maybe make config values get provided by command line arguments instead of hard coded constants
 - [ ] See if ants deliver toxins deliberatly to own base
-- [ ] Implement setting of ant jobs by console arguments (backend)
+- [X] Implement setting of ant jobs by console arguments (backend)
+- [ ] Add -r flag that randomly selects ant jobs

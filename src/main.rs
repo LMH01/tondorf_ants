@@ -27,27 +27,8 @@ const HOME_BASE_BEACONS: [(u16, u16); 16] = [(110, 110), (300, 110), (500, 110),
     (700, 110), (890, 110), (890, 300), (890, 500), (890, 700), (890, 890), (700, 890),
     (500, 890), (300, 890), (100, 890), (110, 700), (110, 500), (110, 300)];
 
-/// The configgured ant jobs. Ant with id 0 will have the job at index 0 and so forth.
-const ANT_JOBS: [AntJob; 16] = [
-    AntJob::Gatherer,
-    AntJob::Gatherer,
-    AntJob::Gatherer,
-    AntJob::Gatherer,
-    AntJob::Gatherer,
-    AntJob::Gatherer,
-    AntJob::Gatherer,
-    AntJob::Offensive,
-    AntJob::Offensive,
-    AntJob::Offensive,
-    AntJob::Offensive,
-    AntJob::Offensive,
-    AntJob::Offensive,
-    AntJob::Offensive,
-    AntJob::WasteMover,
-    AntJob::WasteMover,
-];
-
 fn main() {
+    println!("Hello from tondorf_ants! \\O/");
     let args = Args::parse();
     if args.ant_help {
         print_ant_help();
@@ -56,9 +37,10 @@ fn main() {
     let mut ip = String::from(args.ip.to_string());
     ip.push(':');
     ip.push_str(&args.port.to_string());
-    println!("{:?}", ip);
+    let ant_jobs = set_ant_jobs(&args);
     match TcpStream::connect(ip) {
         Ok(mut tcp_stream) => {
+            println!("Connection established!");
             let mut br = BufReader::new(tcp_stream.try_clone().expect(""));
             tcp_stream.write_all(&Register::new(&args).as_bytes());
             let mut turn_number = 1;
@@ -66,7 +48,7 @@ fn main() {
                 br = BufReader::new(tcp_stream.try_clone().unwrap());
                 let t = Turn::new(&mut br.bytes(), &mut tcp_stream);
                 turn_number += 1;
-                turn(&mut tcp_stream, &t, &args);
+                turn(&mut tcp_stream, &t, &args, &ant_jobs);
             }
         }
         Err(e) => {
@@ -77,7 +59,7 @@ fn main() {
 
 /// Different types of ants
 #[derive(Debug, Ord, PartialEq, PartialOrd, Eq, Clone, Copy)]
-enum AntJob {
+pub enum AntJob {
     /// These ants will focus on gathering sugar back to the base
     Gatherer,
     /// These ants will seek to attack enemy ants, prioritiesed as followed: toxin > sugar > none.
@@ -104,6 +86,43 @@ fn print_ant_help() {
     s.push_str(" 1. Walk thowards nearest toxic waste\n");
     s.push_str(" 2. Offensive ants tasks\n");
     println!("{}", s);
+}
+
+/// Sets the jobs for the ants by analyzing the input parameters.
+/// 
+/// Returns a vector with exactly 16 jobs, job at index 0 is for ant 0 and so forth.
+/// 
+/// Terminates the program when args are not valid.
+fn set_ant_jobs(args: &Args) -> Vec<AntJob>  {
+    let mut jobs = Vec::new();
+    if args.default_jobs {
+        // Use default ant settings
+        for _i in 0..7 {
+            jobs.push(AntJob::Gatherer);
+        }
+        for _i in 0..7 {
+            jobs.push(AntJob::Offensive);
+        }
+        for _i in 0..2 {
+            jobs.push(AntJob::WasteMover);
+        }
+    } else {
+        // Use user ant settings
+        for _i in  0..args.gatherer_ants.unwrap() {
+            jobs.push(AntJob::Gatherer);
+        }
+        for _i in 0..args.offensive_ants.unwrap() {
+            jobs.push(AntJob::Offensive);
+        }
+        for _i in 0..args.waste_mover_ants.unwrap() {
+            jobs.push(AntJob::WasteMover);
+        }
+    }
+    if jobs.len() != 16 {
+        println!("Unable to start client: Total job count != 16, was {}", jobs.len());
+        exit(1);
+    }
+    jobs
 }
 
 #[derive(Debug, Ord, PartialEq, PartialOrd, Eq)]
@@ -201,7 +220,7 @@ impl Ants {
     /// Creates ants from the turn.
     /// 
     /// `team_id` - determines for which team the ants should be build. If `None` ants will be build for own team.
-    fn from_turn(turn: &Turn, team_id: Option<i16>) -> Self {
+    fn from_turn(turn: &Turn, team_id: Option<i16>, ant_jobs: &Vec<AntJob>) -> Self {
         let team_id = match team_id {
             None => turn.team_id,
             Some(id) => id,
@@ -219,7 +238,7 @@ impl Ants {
                 continue;
             }
             if team_id == turn.team_id {
-                ants.push(Ant::new(object.b2.upper, object.pos,object.b2.lower, object.get_ant_cargo(), Some(ANT_JOBS[object.b2.upper as usize])));
+                ants.push(Ant::new(object.b2.upper, object.pos,object.b2.lower, object.get_ant_cargo(), Some(ant_jobs[object.b2.upper as usize])));
             } else {
                 ants.push(Ant::new(object.b2.upper, object.pos,object.b2.lower, object.get_ant_cargo(), None));
             }
@@ -285,13 +304,13 @@ impl Turn {
     /// Only includes ants that are alive.
     /// 
     /// - `live_threshold` can be set to limit the ants that are shown to only ants with less or equal amount of health.
-    fn enemy_ants(&self, live_threshold: Option<u8>) -> Vec<Ant> {
+    fn enemy_ants(&self, live_threshold: Option<u8>, ant_jobs: &Vec<AntJob>) -> Vec<Ant> {
         let mut ants = Vec::new();
         for i in 0..15 {
             if i == self.team_id {
                 continue;
             }
-            for ant in Ants::from_turn(&self, Some(i)).ants {
+            for ant in Ants::from_turn(&self, Some(i), ant_jobs).ants {
                 if ant.health <= 0 {
                     continue;
                 }
