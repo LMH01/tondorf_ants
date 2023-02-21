@@ -15,15 +15,15 @@ pub struct Args {
     pub print_ants: bool,
     #[arg(short, help = "Amount of gatherer ants, total amount of all ants needs to be 16",
         long_help = "Amount of  gatherer ants, total amount of all ants needs to be exact 16. Their top priority is to collect sugar.",
-        required_unless_present_any = ["ant_help", "default_jobs"])]
+        required_unless_present_any = ["ant_help", "default_jobs", "random_jobs"])]
     pub gatherer_ants: Option<u8>,
     #[arg(short, help = "Amount of offensive ants",
         long_help = "Amount of offensive ants. Their top priority is to attack enemy ants.",
-        required_unless_present_any = ["ant_help", "default_jobs"])]
+        required_unless_present_any = ["ant_help", "default_jobs", "random_jobs"])]
     pub offensive_ants: Option<u8>,
     #[arg(short, help = "Amount of waste mover ants",
         long_help = "Amount of waste mover ants. Their top priority is to move waste to enemy bases.",
-        required_unless_present_any = ["ant_help", "default_jobs"])]
+        required_unless_present_any = ["ant_help", "default_jobs", "random_jobs"])]
     pub waste_mover_ants: Option<u8>,
     #[arg(short, long, help = "Print extended help regarding the different ant types.", exclusive = true)]
     pub ant_help: bool,
@@ -32,4 +32,7 @@ pub struct Args {
     #[arg(short, long, help = "If set the ant jobs will be set to a default value", default_value = "false",
         conflicts_with_all = ["gatherer_ants", "offensive_ants", "waste_mover_ants"])]
     pub default_jobs: bool,
+    #[arg(short, long, help = "Set to make ant job selection random",
+        conflicts_with_all = ["gatherer_ants", "offensive_ants", "waste_mover_ants", "default_jobs"])]
+    pub random_jobs: bool,
 }

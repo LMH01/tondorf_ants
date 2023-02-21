@@ -3,6 +3,7 @@ use std::{net::{TcpStream, Ipv4Addr}, io::{BufReader, Write, Read}, collections:
 use cli::Args;
 
 use clap::Parser;
+use rand::{thread_rng, Rng};
 
 use crate::{network::Register, ai::turn};
 
@@ -105,6 +106,17 @@ fn set_ant_jobs(args: &Args) -> Vec<AntJob>  {
         }
         for _i in 0..2 {
             jobs.push(AntJob::WasteMover);
+        }
+    } else if args.random_jobs {
+        // Select random jobs for ants
+        for i in 0..16 {
+            let random = thread_rng().gen_range(0..3);
+            match random {
+                0 => jobs.push(AntJob::Gatherer),
+                1 => jobs.push(AntJob::Offensive),
+                2 => jobs.push(AntJob::WasteMover),
+                _ => panic!("Unable to select random job, iillegal number: {}", random),
+            }
         }
     } else {
         // Use user ant settings
