@@ -2,6 +2,20 @@
 
 This is a client implementation for this game: https://github.com/Tondorf/AntServer
 
+## Usage
+
+This client uses clap to parse command line arguments with which many things can be configgured.
+
+For usage information just type: `cargo run -- -h`
+
+### Examples
+
+Start a client with default job settings: `cargo run -- -d`
+
+Start a client with configured ant settings: `cargo run -- -g 7 -o 7 -w 2`
+
+Start a client and suppy ip and port for server:  `cargo run -- -i 192.168.178.5 --port`
+
 ## Todo
 
 - [X] Reorganize Project (create submodules)
