@@ -26,6 +26,6 @@ Start a client and suppy ip and port for server:  `cargo run -- -i 192.168.178.5
 - [X] Own ants should retreat back to home base when below a certain life threshold
 - [X] Improve pathfinding to homebase by avoiding walking into enemy homebase
 - [X] Maybe make config values get provided by command line arguments instead of hard coded constants
-- [ ] See if ants deliver toxins deliberatly to own base
+- [X] See if ants deliver toxins deliberatly to own base
 - [X] Implement setting of ant jobs by console arguments (backend)
 - [X] Add -r flag that randomly selects ant jobs

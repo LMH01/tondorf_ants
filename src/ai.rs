@@ -41,7 +41,7 @@ impl Ant {
         }
         // Move to enemy base when carrying toxin
         if self.cargo.is_some() && self.cargo.as_ref().unwrap() == &AntCargo::ToxicWaste {
-            return self.get_direction(turn.leading_team_base_coordinates(args), ant_positions, &turn);
+            return self.get_direction(turn.leading_team_base_coordinates(turn), ant_positions, &turn);
         }
         match self.job.unwrap() {
             AntJob::Gatherer => self.calc_gatherer_move(turn, ant_positions),
@@ -118,15 +118,15 @@ impl Ant {
 
 impl Turn {
 
-    /// Returns the coordinates of the base for the enemy team with the currently most points.
+    /// Returns the coordinates of the base for the enemy team with the most points.
     /// 
     /// Used to lead ants with toxins to enemy bases.
-    fn leading_team_base_coordinates(&self, args: &Args) -> (u16, u16) {
+    fn leading_team_base_coordinates(&self, turn: &Turn) -> (u16, u16) {
         let mut coordinates = HOME_BASE_COORDINATES[15];
         let mut max_points = 0;
         for team in &self.teams {
             // Prevent own base form getting attacked.
-            if team.team_name == args.team_name {
+            if team.id == turn.team_id {
                 continue;
             }
             if max_points < team.points {
