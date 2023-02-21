@@ -44,7 +44,7 @@ impl Ant {
             return self.get_direction(turn.leading_team_base_coordinates(turn), ant_positions, &turn);
         }
         match self.job.unwrap() {
-            AntJob::Gatherer => self.calc_gatherer_move(turn, ant_positions),
+            AntJob::Gatherer => self.calc_gatherer_move(turn, ant_positions, args, ant_jobs),
             AntJob::Offensive => self.calc_offensive_move(turn, ant_positions, args, ant_jobs),
             AntJob::WasteMover => self.calc_waste_mover_move(turn, ant_positions, args, ant_jobs),
         }
@@ -53,7 +53,14 @@ impl Ant {
     /// Decides in which direction the ant moves in the next turn.
     /// 
     /// This function focuses on ressource gathering.
-    fn calc_gatherer_move(&self, turn: &Turn, ant_positions: &Vec<(u16, u16)>) -> u8 {
+    fn calc_gatherer_move(&self, turn: &Turn, ant_positions: &Vec<(u16, u16)>, args: &Args, ant_jobs: &Vec<AntJob>) -> u8 {
+        // Attack nearest ant with health <= 3 if hunt is enabled
+        if args.hunt {
+            let nearest_enemy = turn.nearest(self.pos, &turn.enemy_ants(Some(3), ant_jobs));
+            if nearest_enemy.is_some() {
+                return self.get_direction(nearest_enemy.unwrap(), ant_positions, turn);
+            }
+        }
         // Move home when carrying sugar
         if self.cargo.is_some() && self.cargo.as_ref().unwrap() == &AntCargo::Sugar {
             let distance = get_distance(self.pos, HOME_BASE_COORDINATES[turn.team_id as usize]);
@@ -82,7 +89,7 @@ impl Ant {
                 return self.get_direction(nearest_enemy.unwrap(), ant_positions, turn);
             }
         }
-        self.calc_gatherer_move(turn, ant_positions)
+        self.calc_gatherer_move(turn, ant_positions, args, ant_jobs)
     }
 
     /// Decides in which direction the ant movesTEAM_NAME in the next turn.

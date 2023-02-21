@@ -35,4 +35,6 @@ pub struct Args {
     #[arg(short, long, help = "Set to make ant job selection random",
         conflicts_with_all = ["gatherer_ants", "offensive_ants", "waste_mover_ants", "default_jobs"])]
     pub random_jobs: bool,
+    #[arg(long, help = "Set to make gatherer ants hunt enemies with health <= 3. Hunting the enemy ant will take priority over delivering sugar.")]
+    pub hunt: bool,
 }
