@@ -8,7 +8,9 @@ use crate::{Ant, Ants, Turn, AntCargo, HOME_BASE_COORDINATES, utils::{get_distan
 pub fn turn(stream: &mut TcpStream, turn: &Turn, args: &Args) {
     let mut actions: Vec<u8> = Vec::new();
     let ants = Ants::from_turn(&turn, None);
-    ants.print_ants();
+    if args.print_ants {
+        ants.print_ants();
+    }
     for ant in &ants.ants {
         actions.push(ant.calc_move(&turn, &ants.ant_positions, args));
     }
@@ -43,8 +45,8 @@ impl Ant {
         }
         match self.job.unwrap() {
             AntJob::Gatherer => self.calc_gatherer_move(turn, ant_positions),
-            AntJob::Offensive => self.calc_offensive_move(turn, ant_positions),
-            AntJob::WasteMover => self.calc_waste_mover_move(turn, ant_positions),
+            AntJob::Offensive => self.calc_offensive_move(turn, ant_positions, args),
+            AntJob::WasteMover => self.calc_waste_mover_move(turn, ant_positions, args),
         }
     }
 
@@ -72,10 +74,10 @@ impl Ant {
     /// Decides in which direction the ant moves in the next turn.
     /// 
     /// This function focuses on offensive action against enemy ants.
-    fn calc_offensive_move(&self, turn: &Turn, ant_positions: &Vec<(u16, u16)>) -> u8 {
+    fn calc_offensive_move(&self, turn: &Turn, ant_positions: &Vec<(u16, u16)>, args: &Args) -> u8 {
         // Attack clostest enemy ant when ant is below 5 health
         if true {
-            let nearest_enemy = turn.nearest(self.pos, &turn.enemy_ants(Some(10)));
+            let nearest_enemy = turn.nearest(self.pos, &turn.enemy_ants(Some(args.max_health)));
             if nearest_enemy.is_some() {
                 return self.get_direction(nearest_enemy.unwrap(), ant_positions, turn);
             }
@@ -86,12 +88,12 @@ impl Ant {
     /// Decides in which direction the ant movesTEAM_NAME in the next turn.
     /// 
     /// This function focuses on bring waste into enemy bases.
-    fn calc_waste_mover_move(&self, turn: &Turn, ant_positions: &Vec<(u16, u16)>) -> u8 {
+    fn calc_waste_mover_move(&self, turn: &Turn, ant_positions: &Vec<(u16, u16)>, args: &Args) -> u8 {
         match turn.nearest_toxic_waste_coordinates(self.pos) {
             Some(pos) => return self.get_direction(pos, ant_positions, turn),
             None => (),
         }
-        self.calc_offensive_move(turn, ant_positions)
+        self.calc_offensive_move(turn, ant_positions, args)
     }
 
     /// Returns the direction in wich the ant should go this turn.

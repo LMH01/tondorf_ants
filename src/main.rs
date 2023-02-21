@@ -1,4 +1,4 @@
-use std::{net::{TcpStream, Ipv4Addr}, io::{BufReader, Write, Read}, collections::HashSet};
+use std::{net::{TcpStream, Ipv4Addr}, io::{BufReader, Write, Read}, collections::HashSet, process::exit};
 
 use cli::Args;
 
@@ -49,6 +49,10 @@ const ANT_JOBS: [AntJob; 16] = [
 
 fn main() {
     let args = Args::parse();
+    if args.ant_help {
+        print_ant_help();
+        exit(0);
+    }
     let mut ip = String::from(args.ip.to_string());
     ip.push(':');
     ip.push_str(&args.port.to_string());
@@ -81,6 +85,25 @@ enum AntJob {
     /// These ants will bring toxic waste into the enemy base that is currently leading the game.
     /// If no more toxic waste is found they will performe the Offensive ants job.
     WasteMover,
+}
+
+/// Prints help about the different ant types and what the priority of actions is.
+fn print_ant_help() {
+    let mut s = String::from("All ants have the following priorities:\n");
+    s.push_str(" 1. If health is <= 3 move to base\n");
+    s.push_str(" 2. if toxins are carried deliver them to base of enemy with most points\n");
+    s.push_str(" 3. Job specific tasks\n\n");
+    s.push_str("Gatherer ants:\n");
+    s.push_str(" 1. Move home when sugar is carried\n");
+    s.push_str(" 2. Walk thowards nearest piece of sugar\n");
+    s.push_str(" 3. If there is no nearest sugar remain at current position\n\n");
+    s.push_str("Offensive ants:\n");
+    s.push_str(" 1. Attack nearest enemy ant with at most 'max_health' amount of health\n");
+    s.push_str(" 2. Gatherer ants tasks\n\n");
+    s.push_str("Waste mover ants:\n");
+    s.push_str(" 1. Walk thowards nearest toxic waste\n");
+    s.push_str(" 2. Offensive ants tasks\n");
+    println!("{}", s);
 }
 
 #[derive(Debug, Ord, PartialEq, PartialOrd, Eq)]

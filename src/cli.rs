@@ -12,5 +12,21 @@ pub struct Args {
     #[arg(long, help = "The port of the server", default_value = "5000")]
     pub port: u16,
     #[arg(short, long, help = "Submit to print the players ants into console")]
-    pub print_ants: bool
+    pub print_ants: bool,
+    #[arg(short, help = "Amount of gatherer ants, total amount of all ants needs to be 16",
+        long_help = "Amount of  gatherer ants, total amount of all ants needs to be exact 16. Their top priority is to collect sugar.",
+        required_unless_present = "ant_help",)]
+    pub gatherer_ants: Option<u8>,
+    #[arg(short, help = "Amount of offensive ants",
+        long_help = "Amount of offensive ants. Their top priority is to attack enemy ants.",
+        required_unless_present = "ant_help")]
+    pub offensive_ants: Option<u8>,
+    #[arg(short, help = "Amount of waste mover ants",
+        long_help = "Amount of waste mover ants. Their top priority is to move waste to enemy bases.",
+        required_unless_present = "ant_help")]
+    pub waste_mover_ants: Option<u8>,
+    #[arg(short, long, help = "Print extended help regarding the different ant types.", exclusive = true)]
+    pub ant_help: bool,
+    #[arg(short, long, help = "Set the maximum amount of health enemy ants can have before they are attacked.", default_value = "10")]
+    pub max_health: u8,
 }
